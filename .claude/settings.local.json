@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git clone:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:api.github.com)",
+      "WebFetch(domain:filippofilip95.github.io)",
+      "Bash(find /c/Users/sanja/OneDrive/Desktop/karthi/searchanycars.com -not -path */node_modules/* -type f)",
+      "Bash(npx tsc:*)",
+      "WebSearch",
+      "WebFetch(domain:www.schemecolor.com)",
+      "WebFetch(domain:www.cardekho.com)",
+      "WebFetch(domain:www.genesis.com)",
+      "WebFetch(domain:www.monotype.com)",
+      "WebFetch(domain:www.setproduct.com)",
+      "WebFetch(domain:www.media.io)",
+      "WebFetch(domain:www.subframe.com)",
+      "WebFetch(domain:www.cars24.com)",
+      "Bash(node:*)",
+      "Bash(curl -s \"https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/data.json\" -o /tmp/car_logos_data.json)",
+      "Read(//tmp/**)",
+      "Bash(curl -s \"https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/data.json\")",
+      "Bash(\"C:/Users/sanja/OneDrive/Desktop/karthi/car_logos_data.json\")",
+      "Bash(git add:*)",
+      "Bash(git rm:*)",
+      "Bash(rm -rf searchanycars.com/.git)"
+    ]
+  }
+}
