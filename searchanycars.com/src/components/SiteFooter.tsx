@@ -25,6 +25,7 @@ export const SiteFooter = () => {
             <Link to="/about">About Us</Link>
             <Link to="/how-it-works">How It Works</Link>
             <Link to="/splus">S-Plus Premium</Link>
+            <Link to="/splus-new">S-Plus New Cars</Link>
             <Link to="/contact">Contact Us</Link>
             <Link to="/faq">FAQs</Link>
           </div>

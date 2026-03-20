@@ -849,6 +849,38 @@ export const HomePage = () => {
         </div>
       </section>
 
+      {/* S-Plus New — Premium New Car Banner */}
+      <section className="spn-home-banner">
+        <div className="container">
+          <div className="spn-home-banner-content">
+            <div className="spn-home-banner-text">
+              <div className="spn-badge" style={{ marginBottom: '0.5rem' }}>S-Plus New</div>
+              <h2>Brand New. Zero Owners. Your Name First.</h2>
+              <p>Premium unregistered, unused, and demo cars from authorized dealers. Full manufacturer warranty included.</p>
+              <Link to="/splus-new" className="spn-btn-primary" style={{ display: 'inline-block' }}>Explore New Cars</Link>
+            </div>
+            <div className="spn-home-banner-features">
+              <div className="spn-home-feature">
+                <span className="spn-home-feature-icon">◇</span>
+                <span>Factory Fresh</span>
+              </div>
+              <div className="spn-home-feature">
+                <span className="spn-home-feature-icon">★</span>
+                <span>Full Warranty</span>
+              </div>
+              <div className="spn-home-feature">
+                <span className="spn-home-feature-icon">◈</span>
+                <span>First Registration</span>
+              </div>
+              <div className="spn-home-feature">
+                <span className="spn-home-feature-icon">⟐</span>
+                <span>White-Glove Delivery</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Browse by Fuel Type */}
       <section className="section">
         <div className="container">

@@ -161,6 +161,16 @@ const mapWhere = (query) => {
     values.push(Number(query.is_splus))
   }
 
+  if (query.is_new_car) {
+    clauses.push('l.is_new_car = ?')
+    values.push(Number(query.is_new_car))
+  }
+
+  if (query.new_car_type) {
+    clauses.push('l.new_car_type = ?')
+    values.push(query.new_car_type)
+  }
+
   return { whereClause: clauses.join(' AND '), values }
 }
 
@@ -377,6 +387,8 @@ const listingUpsertColumns = [
   'listing_status',
   'featured_listing',
   'is_splus',
+  'is_new_car',
+  'new_car_type',
   'promotion_tier',
   'images_json',
   'additional_notes',
@@ -423,6 +435,8 @@ const normalizeListingPayload = (payload) => ({
   listing_status: payload.listingStatus ?? 'Active',
   featured_listing: payload.featuredListing ? 1 : 0,
   is_splus: payload.isSplus ? 1 : 0,
+  is_new_car: payload.isNewCar ? 1 : 0,
+  new_car_type: payload.newCarType ?? null,
   promotion_tier: payload.promotionTier ?? null,
   images_json: JSON.stringify(Array.isArray(payload.images) ? payload.images : []),
   additional_notes: payload.additionalNotes ?? null,

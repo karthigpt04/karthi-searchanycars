@@ -41,6 +41,7 @@ export const CarCard = ({
             {car.fuel_type === 'Electric' ? <span className="badge badge-green">EV</span> : null}
             {car.fuel_type === 'Hybrid' ? <span className="badge badge-green">Hybrid</span> : null}
             {car.is_splus ? <span className="badge badge-splus">S-Plus</span> : null}
+            {car.is_new_car ? <span className="badge badge-spn">New Car</span> : null}
           </div>
           {imageCount > 0 && <span className="car-image-count">📷 {imageCount} photos</span>}
           <button

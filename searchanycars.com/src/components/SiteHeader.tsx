@@ -5,6 +5,7 @@ const navItems = [
   { label: 'Home', path: '/' },
   { label: 'Buy Cars', path: '/search' },
   { label: 'S-Plus', path: '/splus' },
+  { label: 'S-Plus New', path: '/splus-new' },
   { label: 'How It Works', path: '/how-it-works' },
   { label: 'About Us', path: '/about' },
   { label: 'FAQs', path: '/faq' },
@@ -28,7 +29,7 @@ export const SiteHeader = () => {
               key={item.path}
               to={item.path}
               end={item.path === '/'}
-              className={({ isActive }) => `nav-link ${isActive ? 'nav-link-active' : ''} ${item.path === '/splus' ? 'nav-link-splus' : ''}`}
+              className={({ isActive }) => `nav-link ${isActive ? 'nav-link-active' : ''} ${item.path === '/splus' ? 'nav-link-splus' : ''} ${item.path === '/splus-new' ? 'nav-link-spn' : ''}`}
               onClick={() => setIsOpen(false)}
             >
               {item.label}

@@ -16,7 +16,7 @@ const emptyPayload: ListingPayload = {
   batteryCapacityKwh: null, overallConditionRating: 8, serviceHistoryAvailable: false,
   airbagsCount: 2, infotainmentScreenSize: '8', locationCity: '', locationState: '',
   dealerRating: null, inspectionStatus: 'Pending', inspectionScore: null,
-  listingStatus: 'Active', featuredListing: false, isSplus: false, promotionTier: 'Standard',
+  listingStatus: 'Active', featuredListing: false, isSplus: false, isNewCar: false, newCarType: '', promotionTier: 'Standard',
   images: [], additionalNotes: '', specs: {},
 }
 
@@ -112,6 +112,8 @@ export const AdminCarFormPage = () => {
             listingStatus: listing.listing_status,
             featuredListing: Boolean(listing.featured_listing),
             isSplus: Boolean(listing.is_splus),
+            isNewCar: Boolean(listing.is_new_car),
+            newCarType: listing.new_car_type ?? '',
             promotionTier: listing.promotion_tier ?? 'Standard',
             images: listing.images,
             additionalNotes: listing.additional_notes ?? '',
@@ -637,6 +639,24 @@ export const AdminCarFormPage = () => {
                       <span className="adm-hint" style={{ color: 'var(--warning)' }}>Price is above ₹40L — consider marking as S-Plus</span>
                     )}
                   </div>
+                  <div className="adm-field">
+                    <label className="adm-label">New Car (Unregistered/Unused)</label>
+                    <div className="adm-toggle-row">
+                      <button type="button" className={`adm-toggle-btn ${form.isNewCar ? 'active' : ''}`} onClick={() => set('isNewCar', true)}>Yes</button>
+                      <button type="button" className={`adm-toggle-btn ${!form.isNewCar ? 'active' : ''}`} onClick={() => set('isNewCar', false)}>No</button>
+                    </div>
+                  </div>
+                  {form.isNewCar && (
+                    <div className="adm-field">
+                      <label className="adm-label">New Car Type</label>
+                      <select className="adm-input" value={form.newCarType} onChange={(e) => set('newCarType', e.target.value)}>
+                        <option value="">Select Type</option>
+                        <option value="Unregistered">Unregistered</option>
+                        <option value="Demo">Demo Car</option>
+                        <option value="Unused">Unused / Display</option>
+                      </select>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

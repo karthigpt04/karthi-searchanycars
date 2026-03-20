@@ -60,6 +60,8 @@ export interface Listing {
   listing_status: string
   featured_listing: number
   is_splus: number
+  is_new_car: number
+  new_car_type: string | null
   views_count: number
   favorites_count: number
   lead_count: number
@@ -111,6 +113,8 @@ export interface ListingPayload {
   listingStatus: string
   featuredListing: boolean
   isSplus: boolean
+  isNewCar: boolean
+  newCarType: string
   promotionTier: string
   images: string[]
   additionalNotes: string

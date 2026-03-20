@@ -14,6 +14,7 @@ import { FAQPage } from './pages/FAQPage'
 import { ContactPage } from './pages/ContactPage'
 import { WishlistPage } from './pages/WishlistPage'
 import { SPlusPage } from './pages/SPlusPage'
+import { SPlusNewPage } from './pages/SPlusNewPage'
 
 const ScrollToTop = () => {
   const { pathname } = useLocation()
@@ -44,6 +45,7 @@ function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/search" element={<SearchPage />} />
         <Route path="/splus" element={<SPlusPage />} />
+        <Route path="/splus-new" element={<SPlusNewPage />} />
         <Route path="/car/:id" element={<CarDetailPage />} />
         <Route path="/about" element={<AboutPage />} />
         <Route path="/how-it-works" element={<HowItWorksPage />} />
