@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { api } from '../api/client'
 import { CarCard } from '../components/CarCard'
+import { PriceRangeSlider } from '../components/PriceRangeSlider'
 import type { Listing } from '../types'
 import { WISHLIST_STORAGE_KEY } from '../utils/format'
 
@@ -183,6 +184,15 @@ export const SearchPage = () => {
                           onClick={() => { setPriceMin(String(b.min || '')); setPriceMax(String(b.max || '')) }} type="button">{b.label}</button>
                       ))}
                     </div>
+                    <PriceRangeSlider
+                      min={0}
+                      max={5000000}
+                      valueMin={priceMin}
+                      valueMax={priceMax}
+                      onChangeMin={setPriceMin}
+                      onChangeMax={setPriceMax}
+                      theme="light"
+                    />
                     <div className="filter-range">
                       <input className="filter-input" type="number" placeholder="Min ₹" value={priceMin} onChange={(e) => setPriceMin(e.target.value)} aria-label="Minimum price" />
                       <span style={{ color: 'var(--text-muted)' }}>-</span>

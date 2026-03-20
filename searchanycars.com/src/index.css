@@ -1551,6 +1551,73 @@ input, select, textarea { font: inherit; }
   border-color: var(--navy);
 }
 
+/* ── Price Range Slider ── */
+.price-slider-wrapper {
+  padding: 0.5rem 0 0.25rem;
+}
+.price-slider-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  margin-bottom: 0.4rem;
+  font-weight: 600;
+  user-select: none;
+}
+.price-slider-track {
+  position: relative;
+  height: 6px;
+  border-radius: 3px;
+  cursor: pointer;
+  user-select: none;
+  touch-action: none;
+}
+.price-slider-fill {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  border-radius: 3px;
+}
+.price-slider-thumb {
+  position: absolute;
+  top: 50%;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid #ccc;
+  transform: translate(-50%, -50%);
+  cursor: grab;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  touch-action: none;
+  z-index: 2;
+}
+.price-slider-thumb:hover {
+  border-color: var(--navy, #1a2744);
+  box-shadow: 0 0 0 3px rgba(26,39,68,0.12);
+}
+.price-slider-thumb:active {
+  cursor: grabbing;
+}
+.price-slider-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+}
+.price-slider-thumb:hover .price-slider-tooltip,
+.price-slider-thumb:active .price-slider-tooltip {
+  opacity: 1;
+}
+
 .filter-select {
   width: 100%;
   padding: 0.5rem 0.65rem;
@@ -4512,6 +4579,94 @@ html { scroll-behavior: smooth; }
 /* ============================================
    S-Plus New — Hero (Cinematic)
    ============================================ */
+/* S-Plus New — Compact Hero (matches S-Plus) */
+.spn-hero-compact {
+  background: linear-gradient(160deg, #050508 0%, #0A1628 35%, #0D2818 65%, #050508 100%);
+  padding: 1.75rem 0;
+  position: relative;
+  overflow: hidden;
+}
+.spn-hero-compact::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -15%;
+  width: 350px;
+  height: 350px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(0,201,167,0.08) 0%, transparent 70%);
+  filter: blur(60px);
+}
+.spn-hero-compact-inner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+}
+.spn-hero-compact-left {
+  flex: 1;
+}
+.spn-hero-compact-left .spn-badge {
+  margin-bottom: 0.6rem;
+  font-size: 0.65rem;
+  padding: 0.3rem 0.9rem;
+}
+.spn-hero-compact-left h1 {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: 0.35rem;
+  line-height: 1.2;
+}
+.spn-hero-compact-left p {
+  font-size: 0.88rem;
+  color: rgba(255,255,255,0.55);
+}
+.spn-hero-compact-right {
+  display: flex;
+  gap: 1.25rem;
+  flex-shrink: 0;
+}
+.spn-compact-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(0,201,167,0.15);
+  border-radius: 8px;
+  padding: 0.5rem 0.85rem;
+  font-size: 0.78rem;
+  color: rgba(255,255,255,0.7);
+  white-space: nowrap;
+}
+.spn-compact-icon {
+  color: var(--spn-accent);
+  font-size: 0.85rem;
+}
+@media (max-width: 900px) {
+  .spn-hero-compact-inner {
+    flex-direction: column;
+    text-align: center;
+  }
+  .spn-hero-compact-right {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+}
+@media (max-width: 640px) {
+  .spn-hero-compact-left h1 {
+    font-size: 1.3rem;
+  }
+  .spn-hero-compact-right {
+    gap: 0.75rem;
+  }
+  .spn-compact-badge {
+    font-size: 0.72rem;
+  }
+}
+
 .spn-hero {
   position: relative;
   padding: 6rem 0 4.5rem;
@@ -4706,6 +4861,23 @@ html { scroll-behavior: smooth; }
   gap: 0.6rem;
   flex-wrap: wrap;
   align-items: center;
+}
+.spn-price-filter {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.spn-price-filter .price-slider-wrapper {
+  flex: 2;
+  min-width: 200px;
+}
+.spn-price-inputs {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  flex: 1;
+  min-width: 180px;
 }
 .spn-search-input {
   flex: 1;

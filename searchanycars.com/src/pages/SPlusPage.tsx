@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api/client'
 import type { Listing } from '../types'
+import { PriceRangeSlider } from '../components/PriceRangeSlider'
 import {
   formatINR, formatKM, calculateMonthlyPayment,
   PLACEHOLDER_CAR_IMAGE, DEFAULT_LOAN_PERCENT, DEFAULT_INTEREST_RATE,
@@ -278,6 +279,15 @@ export const SPlusPage = () => {
                         </button>
                       ))}
                     </div>
+                    <PriceRangeSlider
+                      min={0}
+                      max={200000000}
+                      valueMin={priceMin}
+                      valueMax={priceMax}
+                      onChangeMin={setPriceMin}
+                      onChangeMax={setPriceMax}
+                      theme="dark"
+                    />
                     <div className="sp-filter-range">
                       <input className="sp-filter-input" type="number" placeholder="Min ₹" value={priceMin} onChange={(e) => setPriceMin(e.target.value)} />
                       <span className="sp-range-sep">–</span>

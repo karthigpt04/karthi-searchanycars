@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api/client'
 import type { Listing } from '../types'
+import { PriceRangeSlider } from '../components/PriceRangeSlider'
 import {
   formatINR, calculateMonthlyPayment,
   PLACEHOLDER_CAR_IMAGE, DEFAULT_LOAN_PERCENT, DEFAULT_INTEREST_RATE,
@@ -45,6 +46,8 @@ export const SPlusNewPage = () => {
   const [brand, setBrand] = useState('')
   const [fuelType, setFuelType] = useState('')
   const [bodyType, setBodyType] = useState('')
+  const [priceMin, setPriceMin] = useState('')
+  const [priceMax, setPriceMax] = useState('')
   const [sortBy, setSortBy] = useState('newest')
   const [viewMode, setViewMode] = useState<'grid' | 'showcase'>('grid')
 
@@ -74,13 +77,15 @@ export const SPlusNewPage = () => {
     if (brand) result = result.filter((c) => c.brand === brand)
     if (fuelType) result = result.filter((c) => c.fuel_type === fuelType)
     if (bodyType) result = result.filter((c) => c.body_style === bodyType || c.vehicle_type === bodyType)
+    if (priceMin) result = result.filter((c) => c.listing_price_inr >= Number(priceMin))
+    if (priceMax) result = result.filter((c) => c.listing_price_inr <= Number(priceMax))
 
     if (sortBy === 'priceAsc') result.sort((a, b) => a.listing_price_inr - b.listing_price_inr)
     else if (sortBy === 'priceDesc') result.sort((a, b) => b.listing_price_inr - a.listing_price_inr)
     else result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
 
     return result
-  }, [allCars, search, carType, brand, fuelType, bodyType, sortBy])
+  }, [allCars, search, carType, brand, fuelType, bodyType, priceMin, priceMax, sortBy])
 
   const [filteredCars, setFilteredCars] = useState<Listing[]>([])
 
@@ -102,45 +107,36 @@ export const SPlusNewPage = () => {
   }
 
   const clearFilters = () => {
-    setSearch(''); setCarType(''); setBrand(''); setFuelType(''); setBodyType(''); setSortBy('newest')
+    setSearch(''); setCarType(''); setBrand(''); setFuelType(''); setBodyType(''); setPriceMin(''); setPriceMax(''); setSortBy('newest')
   }
 
   const brands = [...new Set(allCars.map((c) => c.brand))].sort()
-  const activeFilterCount = [carType, brand, fuelType, bodyType].filter(Boolean).length
+  const activeFilterCount = [carType, brand, fuelType, bodyType, priceMin, priceMax].filter(Boolean).length
   const displayedCars = filteredCars.slice(0, displayCount)
 
   return (
     <main className="spn-page">
-      {/* Hero — Cinematic Reveal */}
-      <section className="spn-hero">
-        <div className="spn-hero-bg" />
+      {/* Hero — Compact (matches S-Plus) */}
+      <section className="spn-hero-compact">
         <div className="container">
-          <div className="spn-hero-content">
-            <div className="spn-hero-eyebrow">
-              <span className="spn-badge">S-Plus New</span>
-              <span className="spn-hero-divider" />
-              <span className="spn-hero-tagline">Factory Fresh. Zero Owners. Your Name First.</span>
+          <div className="spn-hero-compact-inner">
+            <div className="spn-hero-compact-left">
+              <div className="spn-badge">S-Plus New</div>
+              <h1>Factory Fresh. Zero Owners. <span className="spn-hero-accent">Your Name First.</span></h1>
+              <p>{allCars.length} premium new cars from {brands.length} brands — 0 km driven</p>
             </div>
-            <h1 className="spn-hero-title">
-              The New Car Experience,<br />
-              <span className="spn-hero-accent">Reimagined.</span>
-            </h1>
-            <p className="spn-hero-subtitle">
-              Premium unregistered, unused, and demo cars from authorized dealers.
-              Brand new cars at exceptional value — with full manufacturer warranty.
-            </p>
-            <div className="spn-hero-stats">
-              <div className="spn-hero-stat">
-                <span className="spn-hero-stat-num">{allCars.length}</span>
-                <span className="spn-hero-stat-label">Cars Available</span>
+            <div className="spn-hero-compact-right">
+              <div className="spn-compact-badge">
+                <span className="spn-compact-icon">&#9670;</span>
+                <span>Full Manufacturer Warranty</span>
               </div>
-              <div className="spn-hero-stat">
-                <span className="spn-hero-stat-num">{brands.length}</span>
-                <span className="spn-hero-stat-label">Premium Brands</span>
+              <div className="spn-compact-badge">
+                <span className="spn-compact-icon">&#9733;</span>
+                <span>Authorized Dealers</span>
               </div>
-              <div className="spn-hero-stat">
-                <span className="spn-hero-stat-num">0 km</span>
-                <span className="spn-hero-stat-label">Driven</span>
+              <div className="spn-compact-badge">
+                <span className="spn-compact-icon">&#9826;</span>
+                <span>Unregistered &amp; Unused</span>
               </div>
             </div>
           </div>
@@ -204,6 +200,24 @@ export const SPlusNewPage = () => {
               <select className="spn-filter-select" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
                 {sortOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
+            </div>
+
+            {/* Price Range Slider */}
+            <div className="spn-price-filter">
+              <PriceRangeSlider
+                min={0}
+                max={200000000}
+                valueMin={priceMin}
+                valueMax={priceMax}
+                onChangeMin={setPriceMin}
+                onChangeMax={setPriceMax}
+                theme="dark-green"
+              />
+              <div className="spn-price-inputs">
+                <input className="spn-filter-select" type="number" placeholder="Min ₹" value={priceMin} onChange={(e) => setPriceMin(e.target.value)} style={{ flex: 1 }} />
+                <span style={{ color: 'rgba(255,255,255,0.3)' }}>–</span>
+                <input className="spn-filter-select" type="number" placeholder="Max ₹" value={priceMax} onChange={(e) => setPriceMax(e.target.value)} style={{ flex: 1 }} />
+              </div>
               {activeFilterCount > 0 && (
                 <button className="spn-filter-clear" onClick={clearFilters} type="button">
                   Clear ({activeFilterCount})
