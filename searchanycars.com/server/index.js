@@ -116,8 +116,14 @@ const mapWhere = (query) => {
   }
 
   if (query.location_city) {
-    clauses.push('l.location_city LIKE ?')
-    values.push(`%${query.location_city}%`)
+    const cityList = query.location_city.split(',').map((c) => c.trim()).filter(Boolean)
+    if (cityList.length === 1) {
+      clauses.push('l.location_city LIKE ?')
+      values.push(`%${cityList[0]}%`)
+    } else if (cityList.length > 1) {
+      clauses.push(`(${cityList.map(() => 'l.location_city LIKE ?').join(' OR ')})`)
+      cityList.forEach((c) => values.push(`%${c}%`))
+    }
   }
 
   if (query.model_year_min) {

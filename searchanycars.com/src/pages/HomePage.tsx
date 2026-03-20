@@ -425,6 +425,52 @@ const fuelTypes = [
   { name: 'Electric', icon: '⚡', count: '45+' },
 ]
 
+const cities = [
+  { name: 'New Delhi', slug: 'new-delhi', count: '1,200+', landmark: 'India Gate' },
+  { name: 'Mumbai', slug: 'mumbai', count: '1,800+', landmark: 'Gateway of India' },
+  { name: 'Bengaluru', slug: 'bengaluru', count: '950+', landmark: 'Vidhana Soudha' },
+  { name: 'Chennai', slug: 'chennai', count: '720+', landmark: 'Marina Beach' },
+  { name: 'Hyderabad', slug: 'hyderabad', count: '680+', landmark: 'Charminar' },
+  { name: 'Pune', slug: 'pune', count: '540+', landmark: 'Shaniwar Wada' },
+  { name: 'Ahmedabad', slug: 'ahmedabad', count: '420+', landmark: 'Sabarmati Ashram' },
+  { name: 'Jaipur', slug: 'jaipur', count: '380+', landmark: 'Hawa Mahal' },
+  { name: 'Lucknow', slug: 'lucknow', count: '310+', landmark: 'Bara Imambara' },
+  { name: 'Kolkata', slug: 'kolkata', count: '650+', landmark: 'Victoria Memorial' },
+  { name: 'Chandigarh', slug: 'chandigarh', count: '290+', landmark: 'Rock Garden' },
+  { name: 'Kochi', slug: 'kochi', count: '260+', landmark: 'Chinese Fishing Nets' },
+  { name: 'Coimbatore', slug: 'coimbatore', count: '220+', landmark: 'Marudamalai Temple' },
+  { name: 'Indore', slug: 'indore', count: '180+', landmark: 'Rajwada Palace' },
+  { name: 'Nagpur', slug: 'nagpur', count: '170+', landmark: 'Deekshabhoomi' },
+  { name: 'Surat', slug: 'surat', count: '200+', landmark: 'Surat Castle' },
+  { name: 'Vizag', slug: 'vizag', count: '150+', landmark: 'Kailasagiri' },
+  { name: 'Mysuru', slug: 'mysuru', count: '140+', landmark: 'Mysore Palace' },
+  { name: 'Bhopal', slug: 'bhopal', count: '160+', landmark: 'Taj-ul-Masajid' },
+  { name: 'Thiruvananthapuram', slug: 'thiruvananthapuram', count: '130+', landmark: 'Padmanabhaswamy Temple' },
+]
+
+const CITY_IMAGES: Record<string, string> = {
+  'new-delhi': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1f/India_Gate_in_New_Delhi_03-2016.jpg/320px-India_Gate_in_New_Delhi_03-2016.jpg',
+  'mumbai': 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Mumbai_03-2016_30_Gateway_of_India.jpg/320px-Mumbai_03-2016_30_Gateway_of_India.jpg',
+  'bengaluru': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e7/Vidhana_Soudha_sunset.jpg/320px-Vidhana_Soudha_sunset.jpg',
+  'chennai': 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a8/Chennai_Central.jpg/320px-Chennai_Central.jpg',
+  'hyderabad': 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/71/Charminar_Hyderabad_1.jpg/320px-Charminar_Hyderabad_1.jpg',
+  'pune': 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/Shaniwarwada_gate.JPG/320px-Shaniwarwada_gate.JPG',
+  'ahmedabad': 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/Sabarmati_Ashram.jpg/320px-Sabarmati_Ashram.jpg',
+  'jaipur': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f9/Hawa_Mahal_2011.jpg/320px-Hawa_Mahal_2011.jpg',
+  'lucknow': 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d0/Bara_Imambara_Lucknow.jpg/320px-Bara_Imambara_Lucknow.jpg',
+  'kolkata': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/29/Victoria_Memorial_Kolkata_panorama.jpg/320px-Victoria_Memorial_Kolkata_panorama.jpg',
+  'chandigarh': 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/Open_Hand-Chandigarh.jpg/320px-Open_Hand-Chandigarh.jpg',
+  'kochi': 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/07/Chinese_fishing_nets_-_Flickr_-_Rajeev_Rajagopalan.jpg/320px-Chinese_fishing_nets_-_Flickr_-_Rajeev_Rajagopalan.jpg',
+  'coimbatore': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/49/Marudhamalai.jpg/320px-Marudhamalai.jpg',
+  'indore': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2e/Rajwada_Indore.jpg/320px-Rajwada_Indore.jpg',
+  'nagpur': 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a1/Deekshabhoomi.jpg/320px-Deekshabhoomi.jpg',
+  'surat': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/80/Old_Fort%2C_Surat.jpg/320px-Old_Fort%2C_Surat.jpg',
+  'vizag': 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/05/Kailasagiri.jpg/320px-Kailasagiri.jpg',
+  'mysuru': 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a1/Mysore_Palace_Morning.jpg/320px-Mysore_Palace_Morning.jpg',
+  'bhopal': 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Taj-ul-Masajid_Bhopal.jpg/320px-Taj-ul-Masajid_Bhopal.jpg',
+  'thiruvananthapuram': 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/63/Padmanabhaswamy_Temple_Thiruvananthapuram.jpg/320px-Padmanabhaswamy_Temple_Thiruvananthapuram.jpg',
+}
+
 const reviews = [
   { name: 'Rahul S.', city: 'New Delhi', car: 'Hyundai Creta', text: 'Found the perfect Creta within 2 days. The inspection report gave me complete confidence. Delivered to my doorstep in pristine condition!', rating: 5 },
   { name: 'Priya M.', city: 'Mumbai', car: 'Honda City', text: 'The fixed pricing was such a relief - no haggling! The 7-day return policy sealed the deal. My City is running perfectly.', rating: 5 },
@@ -438,7 +484,9 @@ export const HomePage = () => {
   const [loading, setLoading] = useState(true)
   const [searchTab, setSearchTab] = useState<'budget' | 'brand'>('budget')
   const [selectedBudget, setSelectedBudget] = useState('')
-  const [selectedCity, setSelectedCity] = useState('')
+  const [selectedCities, setSelectedCities] = useState<string[]>([])
+  const [showCityDropdown, setShowCityDropdown] = useState(false)
+  const [showAllCities, setShowAllCities] = useState(false)
   const [featuredTab, setFeaturedTab] = useState('best')
   const [error, setError] = useState('')
   const [showAllBrands, setShowAllBrands] = useState(false)
@@ -465,6 +513,12 @@ export const HomePage = () => {
     })
   }
 
+  const toggleCity = (cityName: string) => {
+    setSelectedCities((prev) =>
+      prev.includes(cityName) ? prev.filter((c) => c !== cityName) : [...prev, cityName]
+    )
+  }
+
   const handleSearch = () => {
     const params = new URLSearchParams()
     if (selectedBudget) {
@@ -472,7 +526,7 @@ export const HomePage = () => {
       if (bracket?.min) params.set('listing_price_min', String(bracket.min))
       if (bracket?.max) params.set('listing_price_max', String(bracket.max))
     }
-    if (selectedCity) params.set('location_city', selectedCity)
+    if (selectedCities.length > 0) params.set('location_city', selectedCities.join(','))
     navigate(`/search?${params.toString()}`)
   }
 
@@ -528,18 +582,41 @@ export const HomePage = () => {
                       ))}
                     </div>
                     <div className="search-city-row" style={{ marginTop: '0.75rem' }}>
-                      <select className="search-city-select" value={selectedCity} onChange={(e) => setSelectedCity(e.target.value)}>
-                        <option value="">All Cities</option>
-                        <option value="New Delhi">New Delhi</option>
-                        <option value="Mumbai">Mumbai</option>
-                        <option value="Bengaluru">Bengaluru</option>
-                        <option value="Chennai">Chennai</option>
-                        <option value="Hyderabad">Hyderabad</option>
-                        <option value="Pune">Pune</option>
-                        <option value="Ahmedabad">Ahmedabad</option>
-                        <option value="Jaipur">Jaipur</option>
-                        <option value="Lucknow">Lucknow</option>
-                      </select>
+                      <div className="city-multi-select">
+                        <button
+                          className="city-multi-select-trigger"
+                          onClick={() => setShowCityDropdown((prev) => !prev)}
+                          type="button"
+                        >
+                          {selectedCities.length === 0
+                            ? 'Select Cities'
+                            : `${selectedCities.length} ${selectedCities.length === 1 ? 'city' : 'cities'} selected`}
+                          <span className={`chevron ${showCityDropdown ? 'open' : ''}`}>&#9660;</span>
+                        </button>
+                        {selectedCities.length > 0 && (
+                          <div className="city-selected-chips">
+                            {selectedCities.map((c) => (
+                              <span key={c} className="city-selected-chip">
+                                {c} <button type="button" onClick={(e) => { e.stopPropagation(); toggleCity(c) }}>&#10005;</button>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {showCityDropdown && (
+                          <div className="city-multi-dropdown">
+                            {cities.map((c) => (
+                              <label key={c.name} className={`city-dropdown-item ${selectedCities.includes(c.name) ? 'selected' : ''}`}>
+                                <input
+                                  type="checkbox"
+                                  checked={selectedCities.includes(c.name)}
+                                  onChange={() => toggleCity(c.name)}
+                                />
+                                <span>{c.name}</span>
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                       <button className="btn btn-primary" onClick={handleSearch} type="button">
                         Find Your Car
                       </button>
@@ -596,8 +673,44 @@ export const HomePage = () => {
         </div>
       </section>
 
-      {/* Browse by Brand */}
+      {/* Browse by City */}
       <section className="section section-gray">
+        <div className="container">
+          <div className="section-head">
+            <h2>Browse by City</h2>
+            <button
+              className="text-link"
+              onClick={() => setShowAllCities((prev) => !prev)}
+              type="button"
+              style={{ background: 'none', border: 'none', cursor: 'pointer' }}
+            >
+              {showAllCities ? 'Show Less' : 'Show More'}
+            </button>
+          </div>
+          <div className="city-browse-grid">
+            {(showAllCities ? cities : cities.slice(0, 8)).map((c) => (
+              <Link key={c.name} to={`/search?location_city=${encodeURIComponent(c.name)}`} className="city-browse-card">
+                <div className="city-card-image">
+                  <img
+                    src={CITY_IMAGES[c.slug]}
+                    alt={c.landmark}
+                    loading="lazy"
+                  />
+                  <div className="city-card-overlay" />
+                </div>
+                <div className="city-card-info">
+                  <span className="city-card-name">{c.name}</span>
+                  <span className="city-card-landmark">{c.landmark}</span>
+                  <span className="city-card-count">{c.count} cars</span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Browse by Brand */}
+      <section className="section">
         <div className="container">
           <div className="section-head">
             <h2>Browse by Brand</h2>

@@ -5,6 +5,11 @@ import { CarCard } from '../components/CarCard'
 import type { Listing } from '../types'
 import { WISHLIST_STORAGE_KEY } from '../utils/format'
 
+const cityOptions = [
+  'New Delhi', 'Mumbai', 'Bengaluru', 'Chennai', 'Hyderabad', 'Pune',
+  'Ahmedabad', 'Jaipur', 'Lucknow', 'Kolkata', 'Chandigarh', 'Kochi',
+  'Coimbatore', 'Indore', 'Nagpur', 'Surat', 'Vizag', 'Mysuru', 'Bhopal', 'Thiruvananthapuram',
+]
 const fuelTypes = ['Petrol', 'Diesel', 'CNG', 'Electric', 'Hybrid', 'LPG']
 const transmissions = ['Manual', 'Automatic', 'AMT', 'CVT', 'DCT']
 const bodyTypes = ['Hatchback', 'Sedan', 'SUV', 'MUV', 'Luxury Sedan', 'Luxury SUV', 'Coupe', 'Pickup']
@@ -47,7 +52,10 @@ export const SearchPage = () => {
   const [transmission, setTransmission] = useState(searchParams.get('transmission_type') || '')
   const [bodyType, setBodyType] = useState(searchParams.get('body_style') || '')
   const [ownerType, setOwnerType] = useState(searchParams.get('ownership_type') || '')
-  const [city, setCity] = useState(searchParams.get('location_city') || '')
+  const [selectedCities, setSelectedCities] = useState<string[]>(() => {
+    const param = searchParams.get('location_city') || ''
+    return param ? param.split(',').map((c) => c.trim()).filter(Boolean) : []
+  })
   const [priceMin, setPriceMin] = useState(searchParams.get('listing_price_min') || '')
   const [priceMax, setPriceMax] = useState(searchParams.get('listing_price_max') || '')
   const [yearMin, setYearMin] = useState(searchParams.get('model_year_min') || '')
@@ -57,7 +65,7 @@ export const SearchPage = () => {
   const [activeQuickTags, setActiveQuickTags] = useState<string[]>([])
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     budget: true, brand: true, fuel: true, transmission: true, body: true,
-    year: false, km: false, owner: false, city: false,
+    year: false, km: false, owner: false, city: true,
   })
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -75,7 +83,7 @@ export const SearchPage = () => {
       fuel_type: fuelType || undefined,
       transmission_type: transmission || undefined,
       ownership_type: ownerType || undefined,
-      location_city: city || undefined,
+      location_city: selectedCities.length > 0 ? selectedCities.join(',') : undefined,
       listing_price_min: priceMin || undefined,
       listing_price_max: priceMax || undefined,
       model_year_min: yearMin || undefined,
@@ -92,7 +100,7 @@ export const SearchPage = () => {
       setCars([])
       setError('Failed to load listings. Please try again.')
     }).finally(() => setLoading(false))
-  }, [search, brand, fuelType, transmission, bodyType, ownerType, city, priceMin, priceMax, yearMin, yearMax, kmMax, sortBy, activeQuickTags])
+  }, [search, brand, fuelType, transmission, bodyType, ownerType, selectedCities, priceMin, priceMax, yearMin, yearMax, kmMax, sortBy, activeQuickTags])
 
   // Debounced fetch — waits 300ms after last filter change
   useEffect(() => {
@@ -102,11 +110,11 @@ export const SearchPage = () => {
   }, [fetchCars])
 
   // Reset display count when filters change
-  useEffect(() => { setDisplayCount(12) }, [search, brand, fuelType, transmission, bodyType, ownerType, city, priceMin, priceMax, yearMin, yearMax, kmMax, activeQuickTags])
+  useEffect(() => { setDisplayCount(12) }, [search, brand, fuelType, transmission, bodyType, ownerType, selectedCities, priceMin, priceMax, yearMin, yearMax, kmMax, activeQuickTags])
 
   const clearFilters = () => {
     setSearch(''); setBrand(''); setFuelType(''); setTransmission(''); setBodyType('')
-    setOwnerType(''); setCity(''); setPriceMin(''); setPriceMax('')
+    setOwnerType(''); setSelectedCities([]); setPriceMin(''); setPriceMax('')
     setYearMin(''); setYearMax(''); setKmMax(''); setActiveQuickTags([]); setSortBy('latest')
   }
 
@@ -126,7 +134,7 @@ export const SearchPage = () => {
     setActiveQuickTags((prev) => prev.includes(key) ? prev.filter((t) => t !== key) : [...prev, key])
   }
 
-  const activeFilterCount = [brand, fuelType, transmission, bodyType, ownerType, city, priceMin, priceMax, yearMin, yearMax, kmMax].filter(Boolean).length
+  const activeFilterCount = [brand, fuelType, transmission, bodyType, ownerType, ...selectedCities, priceMin, priceMax, yearMin, yearMax, kmMax].filter(Boolean).length
   const displayedCars = cars.slice(0, displayCount)
 
   return (
@@ -135,7 +143,7 @@ export const SearchPage = () => {
         <div className="container">
           <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>
             {brand ? `Used ${brand} Cars` : 'Search Used Cars'}
-            {city ? ` in ${city}` : ''}
+            {selectedCities.length > 0 ? ` in ${selectedCities.join(', ')}` : ''}
           </h1>
         </div>
       </div>
@@ -271,9 +279,22 @@ export const SearchPage = () => {
               {/* City */}
               <div className="filter-section">
                 <button className="filter-section-title" onClick={() => toggleSection('city')} type="button" aria-expanded={openSections.city}>
-                  City <span className={`chevron ${openSections.city ? 'open' : ''}`}>▼</span>
+                  City {selectedCities.length > 0 ? `(${selectedCities.length})` : ''} <span className={`chevron ${openSections.city ? 'open' : ''}`}>▼</span>
                 </button>
-                {openSections.city && <input className="filter-input" value={city} onChange={(e) => setCity(e.target.value)} placeholder="e.g., Mumbai, Delhi..." aria-label="City filter" />}
+                {openSections.city && (
+                  <div className="filter-chips filter-chips-city">
+                    {cityOptions.map((c) => (
+                      <button
+                        key={c}
+                        className={`filter-chip ${selectedCities.includes(c) ? 'active' : ''}`}
+                        onClick={() => setSelectedCities((prev) => prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c])}
+                        type="button"
+                      >
+                        {c}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </aside>
 
@@ -289,7 +310,9 @@ export const SearchPage = () => {
                     {fuelType && <span className="active-filter-pill">{fuelType} <button onClick={() => setFuelType('')} type="button">✕</button></span>}
                     {transmission && <span className="active-filter-pill">{transmission} <button onClick={() => setTransmission('')} type="button">✕</button></span>}
                     {bodyType && <span className="active-filter-pill">{bodyType} <button onClick={() => setBodyType('')} type="button">✕</button></span>}
-                    {city && <span className="active-filter-pill">{city} <button onClick={() => setCity('')} type="button">✕</button></span>}
+                    {selectedCities.map((c) => (
+                      <span key={c} className="active-filter-pill">{c} <button onClick={() => setSelectedCities((prev) => prev.filter((x) => x !== c))} type="button">✕</button></span>
+                    ))}
                   </div>
                 )}
                 <select className="sort-select" value={sortBy} onChange={(e) => setSortBy(e.target.value)} aria-label="Sort results">
