@@ -28,7 +28,7 @@ const config = {
 
   // Rate limiting
   rateLimitWindowMs: Number(process.env.RATE_LIMIT_WINDOW_MS || 900000),
-  rateLimitMax: Number(process.env.RATE_LIMIT_MAX || 200),
+  rateLimitMax: Number(process.env.RATE_LIMIT_MAX || ((process.env.NODE_ENV || 'development') !== 'production' ? 1000 : 200)),
 }
 
 export default config
