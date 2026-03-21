@@ -1,10 +1,15 @@
 import { useEffect } from 'react'
 import { Link, Route, Routes, useLocation } from 'react-router-dom'
+import { SiteConfigProvider } from './context/SiteConfigContext'
+import { AuthProvider } from './context/AuthContext'
+import { LoginPage } from './pages/LoginPage'
+import { AdminGuard } from './components/AdminGuard'
 import { SiteFooter } from './components/SiteFooter'
 import { SiteHeader } from './components/SiteHeader'
 import { MobileNav } from './components/MobileNav'
 import { AdminPage } from './pages/AdminPage'
 import { AdminCarFormPage } from './pages/AdminCarFormPage'
+import { AdminSettingsPage } from './pages/AdminSettingsPage'
 import { CarDetailPage } from './pages/CarDetailPage'
 import { HomePage } from './pages/HomePage'
 import { SearchPage } from './pages/SearchPage'
@@ -15,6 +20,7 @@ import { ContactPage } from './pages/ContactPage'
 import { WishlistPage } from './pages/WishlistPage'
 import { SPlusPage } from './pages/SPlusPage'
 import { SPlusNewPage } from './pages/SPlusNewPage'
+import { SellCarPage } from './pages/SellCarPage'
 
 const ScrollToTop = () => {
   const { pathname } = useLocation()
@@ -38,7 +44,8 @@ const NotFoundPage = () => (
 
 function App() {
   return (
-    <>
+    <SiteConfigProvider>
+      <AuthProvider>
       <ScrollToTop />
       <SiteHeader />
       <Routes>
@@ -52,14 +59,18 @@ function App() {
         <Route path="/faq" element={<FAQPage />} />
         <Route path="/contact" element={<ContactPage />} />
         <Route path="/wishlist" element={<WishlistPage />} />
-        <Route path="/admin" element={<AdminPage />} />
-        <Route path="/admin/car/new" element={<AdminCarFormPage />} />
-        <Route path="/admin/car/:id/edit" element={<AdminCarFormPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/admin" element={<AdminGuard><AdminPage /></AdminGuard>} />
+        <Route path="/admin/car/new" element={<AdminGuard><AdminCarFormPage /></AdminGuard>} />
+        <Route path="/admin/car/:id/edit" element={<AdminGuard><AdminCarFormPage /></AdminGuard>} />
+        <Route path="/admin/settings" element={<AdminGuard><AdminSettingsPage /></AdminGuard>} />
+        <Route path="/sell" element={<SellCarPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
       <SiteFooter />
       <MobileNav />
-    </>
+      </AuthProvider>
+    </SiteConfigProvider>
   )
 }
 

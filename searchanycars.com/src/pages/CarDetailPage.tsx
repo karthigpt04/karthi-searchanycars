@@ -23,6 +23,10 @@ export const CarDetailPage = () => {
   const [showTestDrive, setShowTestDrive] = useState(false)
   const [showReserve, setShowReserve] = useState(false)
 
+  // Touch swipe for gallery
+  const [touchStart, setTouchStart] = useState<number | null>(null)
+  const [touchEnd, setTouchEnd] = useState<number | null>(null)
+
   // EMI Calculator
   const [downPayment, setDownPayment] = useState(20)
   const [tenure, setTenure] = useState(48)
@@ -88,6 +92,30 @@ export const CarDetailPage = () => {
 
   const images = car.images.length > 0 ? car.images : [PLACEHOLDER_CAR_IMAGE]
 
+  const minSwipeDistance = 50
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null)
+    setTouchStart(e.targetTouches[0].clientX)
+  }
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX)
+  }
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return
+    const distance = touchStart - touchEnd
+    const isLeftSwipe = distance > minSwipeDistance
+    const isRightSwipe = distance < -minSwipeDistance
+    if (isLeftSwipe && images.length > 1) {
+      setSelectedImage((i) => (i + 1) % images.length)
+    }
+    if (isRightSwipe && images.length > 1) {
+      setSelectedImage((i) => (i - 1 + images.length) % images.length)
+    }
+  }
+
   const loanAmount = car.listing_price_inr * (1 - downPayment / 100)
   const monthlyEMI = calculateMonthlyPayment(loanAmount, interestRate, tenure)
   const totalPayable = monthlyEMI * tenure
@@ -113,7 +141,7 @@ export const CarDetailPage = () => {
             <div>
               {/* Image Gallery */}
               <div className="gallery">
-                <div className="gallery-main">
+                <div className="gallery-main" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
                   <img src={images[selectedImage]} alt={`${car.title} - Photo ${selectedImage + 1}`} />
 
                   {images.length > 1 && (

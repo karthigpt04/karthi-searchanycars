@@ -1,19 +1,21 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { NavLink, Link } from 'react-router-dom'
-
-const navItems = [
-  { label: 'Home', path: '/' },
-  { label: 'Buy Cars', path: '/search' },
-  { label: 'S-Plus', path: '/splus' },
-  { label: 'S-Plus New', path: '/splus-new' },
-  { label: 'How It Works', path: '/how-it-works' },
-  { label: 'About Us', path: '/about' },
-  { label: 'FAQs', path: '/faq' },
-  { label: 'Contact', path: '/contact' },
-]
+import { useSiteConfig } from '../context/SiteConfigContext'
+import { useAuth } from '../context/AuthContext'
 
 export const SiteHeader = () => {
+  const { config } = useSiteConfig()
+  const { user, isAdmin, logout } = useAuth()
   const [isOpen, setIsOpen] = useState(false)
+
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => { document.body.style.overflow = '' }
+  }, [isOpen])
 
   return (
     <header className="site-header">
@@ -24,7 +26,7 @@ export const SiteHeader = () => {
         </Link>
 
         <nav className={`header-nav ${isOpen ? 'open' : ''}`}>
-          {navItems.map((item) => (
+          {config.nav_items.map((item) => (
             <NavLink
               key={item.path}
               to={item.path}
@@ -37,7 +39,17 @@ export const SiteHeader = () => {
           ))}
         </nav>
 
+        {isOpen && <div className="header-backdrop" onClick={() => setIsOpen(false)} />}
+
         <div className="header-actions">
+          {user ? (
+            <>
+              {isAdmin && <Link to="/admin" className="btn btn-ghost btn-sm">Admin</Link>}
+              <button className="btn btn-ghost btn-sm" onClick={logout} type="button">Logout</button>
+            </>
+          ) : (
+            <Link to="/login" className="btn btn-outline btn-sm">Login</Link>
+          )}
           <Link to="/wishlist" className="wishlist-icon" aria-label="Wishlist">
             ♡
           </Link>

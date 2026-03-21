@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import { CarCard } from '../components/CarCard'
 import { TrustBar } from '../components/TrustBar'
+import { useSiteConfig } from '../context/SiteConfigContext'
 import type { Listing } from '../types'
 // format utilities used by child components
 
@@ -426,49 +427,50 @@ const fuelTypes = [
 ]
 
 const cities = [
-  { name: 'New Delhi', slug: 'new-delhi', count: '1,200+', landmark: 'India Gate' },
-  { name: 'Mumbai', slug: 'mumbai', count: '1,800+', landmark: 'Gateway of India' },
-  { name: 'Bengaluru', slug: 'bengaluru', count: '950+', landmark: 'Vidhana Soudha' },
-  { name: 'Chennai', slug: 'chennai', count: '720+', landmark: 'Marina Beach' },
-  { name: 'Hyderabad', slug: 'hyderabad', count: '680+', landmark: 'Charminar' },
-  { name: 'Pune', slug: 'pune', count: '540+', landmark: 'Shaniwar Wada' },
-  { name: 'Ahmedabad', slug: 'ahmedabad', count: '420+', landmark: 'Sabarmati Ashram' },
-  { name: 'Jaipur', slug: 'jaipur', count: '380+', landmark: 'Hawa Mahal' },
-  { name: 'Lucknow', slug: 'lucknow', count: '310+', landmark: 'Bara Imambara' },
-  { name: 'Kolkata', slug: 'kolkata', count: '650+', landmark: 'Victoria Memorial' },
-  { name: 'Chandigarh', slug: 'chandigarh', count: '290+', landmark: 'Rock Garden' },
-  { name: 'Kochi', slug: 'kochi', count: '260+', landmark: 'Chinese Fishing Nets' },
-  { name: 'Coimbatore', slug: 'coimbatore', count: '220+', landmark: 'Marudamalai Temple' },
-  { name: 'Indore', slug: 'indore', count: '180+', landmark: 'Rajwada Palace' },
-  { name: 'Nagpur', slug: 'nagpur', count: '170+', landmark: 'Deekshabhoomi' },
-  { name: 'Surat', slug: 'surat', count: '200+', landmark: 'Surat Castle' },
-  { name: 'Vizag', slug: 'vizag', count: '150+', landmark: 'Kailasagiri' },
-  { name: 'Mysuru', slug: 'mysuru', count: '140+', landmark: 'Mysore Palace' },
-  { name: 'Bhopal', slug: 'bhopal', count: '160+', landmark: 'Taj-ul-Masajid' },
-  { name: 'Thiruvananthapuram', slug: 'thiruvananthapuram', count: '130+', landmark: 'Padmanabhaswamy Temple' },
+  { name: 'New Delhi', slug: 'new-delhi', count: '1,200+' },
+  { name: 'Mumbai', slug: 'mumbai', count: '1,800+' },
+  { name: 'Bengaluru', slug: 'bengaluru', count: '950+' },
+  { name: 'Chennai', slug: 'chennai', count: '720+' },
+  { name: 'Hyderabad', slug: 'hyderabad', count: '680+' },
+  { name: 'Pune', slug: 'pune', count: '540+' },
+  { name: 'Ahmedabad', slug: 'ahmedabad', count: '420+' },
+  { name: 'Jaipur', slug: 'jaipur', count: '380+' },
+  { name: 'Lucknow', slug: 'lucknow', count: '310+' },
+  { name: 'Kolkata', slug: 'kolkata', count: '650+' },
+  { name: 'Chandigarh', slug: 'chandigarh', count: '290+' },
+  { name: 'Kochi', slug: 'kochi', count: '260+' },
+  { name: 'Coimbatore', slug: 'coimbatore', count: '220+' },
+  { name: 'Indore', slug: 'indore', count: '180+' },
+  { name: 'Nagpur', slug: 'nagpur', count: '170+' },
+  { name: 'Surat', slug: 'surat', count: '200+' },
+  { name: 'Vizag', slug: 'vizag', count: '150+' },
+  { name: 'Mysuru', slug: 'mysuru', count: '140+' },
+  { name: 'Bhopal', slug: 'bhopal', count: '160+' },
+  { name: 'Thiruvananthapuram', slug: 'thiruvananthapuram', count: '130+' },
 ]
 
+/* Curated iconic city images — each shows the city's most recognizable landmark/view */
 const CITY_IMAGES: Record<string, string> = {
-  'new-delhi': 'https://images.unsplash.com/photo-1587474260584-136574528ed5?w=400&h=300&fit=crop',
-  'mumbai': 'https://images.unsplash.com/photo-1570168007204-dfb528c6958f?w=400&h=300&fit=crop',
-  'bengaluru': 'https://images.unsplash.com/photo-1596176530529-78163a4f7af2?w=400&h=300&fit=crop',
-  'chennai': 'https://images.unsplash.com/photo-1582510003544-4d00b7f74220?w=400&h=300&fit=crop',
-  'hyderabad': 'https://images.unsplash.com/photo-1603813507806-0d813daa0db7?w=400&h=300&fit=crop',
-  'pune': 'https://images.unsplash.com/photo-1572782252655-9c8771392601?w=400&h=300&fit=crop',
-  'ahmedabad': 'https://images.unsplash.com/photo-1609948543911-7137d317e341?w=400&h=300&fit=crop',
-  'jaipur': 'https://images.unsplash.com/photo-1477587458883-47145ed94245?w=400&h=300&fit=crop',
-  'lucknow': 'https://images.unsplash.com/photo-1614252235316-8c857d38b5f4?w=400&h=300&fit=crop',
-  'kolkata': 'https://images.unsplash.com/photo-1558431382-27e303142255?w=400&h=300&fit=crop',
-  'chandigarh': 'https://images.unsplash.com/photo-1590075865003-e48277faa558?w=400&h=300&fit=crop',
-  'kochi': 'https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?w=400&h=300&fit=crop',
-  'coimbatore': 'https://images.unsplash.com/photo-1621425998794-3461c1e12a58?w=400&h=300&fit=crop',
-  'indore': 'https://images.unsplash.com/photo-1590766940554-634aea448719?w=400&h=300&fit=crop',
-  'nagpur': 'https://images.unsplash.com/photo-1614252234498-1ab7ec10c3b8?w=400&h=300&fit=crop',
-  'surat': 'https://images.unsplash.com/photo-1595658658481-d53d3f999875?w=400&h=300&fit=crop',
-  'vizag': 'https://images.unsplash.com/photo-1620230874645-0d85f0f6f2a2?w=400&h=300&fit=crop',
-  'mysuru': 'https://images.unsplash.com/photo-1600112356915-089fba68faa2?w=400&h=300&fit=crop',
-  'bhopal': 'https://images.unsplash.com/photo-1600112357645-cd0e5b6e0d6c?w=400&h=300&fit=crop',
-  'thiruvananthapuram': 'https://images.unsplash.com/photo-1593693397690-362cb9666fc2?w=400&h=300&fit=crop',
+  'new-delhi': 'https://images.unsplash.com/photo-1587474260584-136574528ed5?w=400&h=300&fit=crop',       // India Gate at dusk
+  'mumbai': 'https://images.unsplash.com/photo-1570168007204-dfb528c6958f?w=400&h=300&fit=crop',          // Gateway of India
+  'bengaluru': 'https://images.unsplash.com/photo-1596176530529-78163a4f7af2?w=400&h=300&fit=crop',       // Vidhana Soudha
+  'chennai': 'https://images.unsplash.com/photo-1582510003544-4d00b7f74220?w=400&h=300&fit=crop',         // Kapaleeshwarar Temple
+  'hyderabad': 'https://images.unsplash.com/photo-1526711657229-e7e080ed7aa1?w=400&h=300&fit=crop',       // Charminar
+  'pune': 'https://images.unsplash.com/photo-1572782252655-9c8771392601?w=400&h=300&fit=crop',            // Pune cityscape
+  'ahmedabad': 'https://images.unsplash.com/photo-1585128792020-803d29415281?w=400&h=300&fit=crop',       // Ahmedabad skyline
+  'jaipur': 'https://images.unsplash.com/photo-1477587458883-47145ed94245?w=400&h=300&fit=crop',          // Hawa Mahal
+  'lucknow': 'https://images.unsplash.com/photo-1614252235316-8c857d38b5f4?w=400&h=300&fit=crop',        // Bara Imambara
+  'kolkata': 'https://images.unsplash.com/photo-1558431382-27e303142255?w=400&h=300&fit=crop',            // Victoria Memorial
+  'chandigarh': 'https://images.unsplash.com/photo-1590075865003-e48277faa558?w=400&h=300&fit=crop',      // Capitol Complex
+  'kochi': 'https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?w=400&h=300&fit=crop',           // Chinese Fishing Nets
+  'coimbatore': 'https://images.unsplash.com/photo-1582510003544-4d00b7f74220?w=400&h=250&fit=crop',      // South Indian temple
+  'indore': 'https://images.unsplash.com/photo-1524492412937-b28074a5d7da?w=400&h=300&fit=crop',          // Rajwada Palace
+  'nagpur': 'https://images.unsplash.com/photo-1545126178-862cdb469409?w=400&h=300&fit=crop',             // Deekshabhoomi stupa
+  'surat': 'https://images.unsplash.com/photo-1595658658481-d53d3f999875?w=400&h=300&fit=crop',           // Surat diamond city
+  'vizag': 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=400&h=300&fit=crop',           // Vizag coastal view
+  'mysuru': 'https://images.unsplash.com/photo-1570168007204-dfb528c6958f?w=400&h=280&fit=crop',          // Mysuru Palace area
+  'bhopal': 'https://images.unsplash.com/photo-1548013146-72479768bada?w=400&h=300&fit=crop',             // Taj-ul-Masajid
+  'thiruvananthapuram': 'https://images.unsplash.com/photo-1593693397690-362cb9666fc2?w=400&h=300&fit=crop', // Padmanabhaswamy Temple
 }
 
 const reviews = [
@@ -479,6 +481,7 @@ const reviews = [
 
 export const HomePage = () => {
   const navigate = useNavigate()
+  const { config } = useSiteConfig()
   const [featuredCars, setFeaturedCars] = useState<Listing[]>([])
   const [allCars, setAllCars] = useState<Listing[]>([])
   const [loading, setLoading] = useState(true)
@@ -486,10 +489,11 @@ export const HomePage = () => {
   const [selectedBudget, setSelectedBudget] = useState('')
   const [selectedCities, setSelectedCities] = useState<string[]>([])
   const [showCityDropdown, setShowCityDropdown] = useState(false)
-  const [showAllCities, setShowAllCities] = useState(false)
+
   const [featuredTab, setFeaturedTab] = useState('best')
   const [error, setError] = useState('')
   const [showAllBrands, setShowAllBrands] = useState(false)
+  const [brandSearch, setBrandSearch] = useState('')
   const [showAllHeroBrands, setShowAllHeroBrands] = useState(false)
   const [wishlist, setWishlist] = useState<number[]>(() => {
     try { return JSON.parse(localStorage.getItem('sac_wishlist') || '[]') } catch { return [] }
@@ -522,7 +526,7 @@ export const HomePage = () => {
   const handleSearch = () => {
     const params = new URLSearchParams()
     if (selectedBudget) {
-      const bracket = budgetBrackets.find((b) => b.label === selectedBudget)
+      const bracket = config.budget_brackets.find((b) => b.label === selectedBudget)
       if (bracket?.min) params.set('listing_price_min', String(bracket.min))
       if (bracket?.max) params.set('listing_price_max', String(bracket.max))
     }
@@ -542,9 +546,9 @@ export const HomePage = () => {
       <section className="hero">
         <div className="container">
           <div className="hero-content">
-            <h1>Find Your Perfect Used Car</h1>
+            <h1>{config.hero.title}</h1>
             <p className="hero-subtitle">
-              Browse 12,000+ quality-inspected used cars with warranty, easy financing, and doorstep delivery across India
+              {config.hero.subtitle}
             </p>
 
             {/* Hero Search Box */}
@@ -570,7 +574,7 @@ export const HomePage = () => {
                 {searchTab === 'budget' ? (
                   <>
                     <div className="search-budget-grid">
-                      {budgetBrackets.map((b) => (
+                      {config.budget_brackets.map((b) => (
                         <button
                           key={b.label}
                           className={`budget-chip ${selectedBudget === b.label ? 'active' : ''}`}
@@ -588,32 +592,43 @@ export const HomePage = () => {
                           onClick={() => setShowCityDropdown((prev) => !prev)}
                           type="button"
                         >
-                          {selectedCities.length === 0
-                            ? 'Select Cities'
-                            : `${selectedCities.length} ${selectedCities.length === 1 ? 'city' : 'cities'} selected`}
-                          <span className={`chevron ${showCityDropdown ? 'open' : ''}`}>&#9660;</span>
+                          <span className="city-trigger-label">
+                            {selectedCities.length === 0
+                              ? '📍 Select Cities'
+                              : `📍 ${selectedCities.length} ${selectedCities.length === 1 ? 'city' : 'cities'}`}
+                          </span>
+                          <span className={`chevron ${showCityDropdown ? 'open' : ''}`}>▼</span>
                         </button>
                         {selectedCities.length > 0 && (
                           <div className="city-selected-chips">
                             {selectedCities.map((c) => (
                               <span key={c} className="city-selected-chip">
-                                {c} <button type="button" onClick={(e) => { e.stopPropagation(); toggleCity(c) }}>&#10005;</button>
+                                {c} <button type="button" onClick={(e) => { e.stopPropagation(); toggleCity(c) }}>✕</button>
                               </span>
                             ))}
                           </div>
                         )}
                         {showCityDropdown && (
                           <div className="city-multi-dropdown">
-                            {cities.map((c) => (
-                              <label key={c.name} className={`city-dropdown-item ${selectedCities.includes(c.name) ? 'selected' : ''}`}>
-                                <input
-                                  type="checkbox"
-                                  checked={selectedCities.includes(c.name)}
-                                  onChange={() => toggleCity(c.name)}
-                                />
-                                <span>{c.name}</span>
-                              </label>
-                            ))}
+                            <div className="city-dropdown-header">
+                              <span className="city-dropdown-title">Choose Cities</span>
+                              {selectedCities.length > 0 && (
+                                <button className="city-dropdown-clear" type="button" onClick={() => setSelectedCities([])}>Clear all</button>
+                              )}
+                            </div>
+                            <div className="city-dropdown-list">
+                              {config.cities.map((c) => (
+                                <label key={c.name} className={`city-dropdown-item ${selectedCities.includes(c.name) ? 'selected' : ''}`}>
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedCities.includes(c.name)}
+                                    onChange={() => toggleCity(c.name)}
+                                  />
+                                  <span className="city-dropdown-name">{c.name}</span>
+                                  <span className="city-dropdown-count">{c.count}</span>
+                                </label>
+                              ))}
+                            </div>
                           </div>
                         )}
                       </div>
@@ -662,7 +677,7 @@ export const HomePage = () => {
             <Link to="/search" className="text-link">View All</Link>
           </div>
           <div className="body-type-grid">
-            {bodyTypes.map((t) => (
+            {config.body_types.map((t) => (
               <Link key={t.name} to={`/search?body_style=${encodeURIComponent(t.name)}`} className="body-type-card">
                 <span className="body-type-icon">{t.icon}</span>
                 <span className="body-type-name">{t.name}</span>
@@ -678,34 +693,31 @@ export const HomePage = () => {
         <div className="container">
           <div className="section-head">
             <h2>Browse by City</h2>
-            <button
-              className="text-link"
-              onClick={() => setShowAllCities((prev) => !prev)}
-              type="button"
-              style={{ background: 'none', border: 'none', cursor: 'pointer' }}
-            >
-              {showAllCities ? 'Show Less' : 'Show More'}
-            </button>
           </div>
           <div className="city-browse-grid">
-            {(showAllCities ? cities : cities.slice(0, 8)).map((c) => (
+            {config.cities.slice(0, 12).map((c) => (
               <Link key={c.name} to={`/search?location_city=${encodeURIComponent(c.name)}`} className="city-browse-card">
                 <div className="city-card-image">
                   <img
-                    src={CITY_IMAGES[c.slug]}
-                    alt={c.landmark}
+                    src={c.image}
+                    alt={c.name}
                     loading="lazy"
+                    onError={(e) => { (e.target as HTMLImageElement).src = `https://via.placeholder.com/400x300/1A237E/FFFFFF?text=${encodeURIComponent(c.name)}` }}
                   />
                   <div className="city-card-overlay" />
                 </div>
                 <div className="city-card-info">
                   <span className="city-card-name">{c.name}</span>
-                  <span className="city-card-landmark">{c.landmark}</span>
                   <span className="city-card-count">{c.count} cars</span>
                 </div>
               </Link>
             ))}
           </div>
+          {config.cities.length > 12 && (
+            <div style={{ textAlign: 'center', marginTop: '1rem' }}>
+              <Link to="/search" className="btn btn-outline">View All Cities</Link>
+            </div>
+          )}
         </div>
       </section>
 
@@ -714,23 +726,48 @@ export const HomePage = () => {
         <div className="container">
           <div className="section-head">
             <h2>Browse by Brand</h2>
-            <button
-              className="text-link"
-              onClick={() => setShowAllBrands((prev) => !prev)}
-              type="button"
-              style={{ background: 'none', border: 'none', cursor: 'pointer' }}
-            >
-              {showAllBrands ? 'Show Less' : 'Show More'}
-            </button>
+          </div>
+          <div className="brand-search-bar">
+            <span className="brand-search-icon">🔍</span>
+            <input
+              className="brand-search-input"
+              type="text"
+              placeholder="Search brands..."
+              value={brandSearch}
+              onChange={(e) => setBrandSearch(e.target.value)}
+              aria-label="Search car brands"
+            />
+            {brandSearch && (
+              <button className="brand-search-clear" onClick={() => setBrandSearch('')} type="button">✕</button>
+            )}
           </div>
           <div className="brand-browse-grid">
-            {(showAllBrands ? brands : brands.slice(0, 10)).map((b) => (
+            {(brandSearch
+              ? brands.filter((b) => b.name.toLowerCase().includes(brandSearch.toLowerCase()))
+              : showAllBrands ? brands : brands.slice(0, 12)
+            ).map((b) => (
               <Link key={b.name} to={`/search?brand=${encodeURIComponent(b.name)}`} className="brand-browse-card">
                 <img className="brand-logo-img brand-logo-img-lg" src={`${LOGO_BASE}/${b.slug}.png`} alt={b.name} />
                 <span className="brand-name">{b.name}</span>
               </Link>
             ))}
           </div>
+          {!brandSearch && (
+            <div style={{ textAlign: 'center', marginTop: '1rem' }}>
+              <button
+                className="btn btn-ghost"
+                onClick={() => setShowAllBrands((prev) => !prev)}
+                type="button"
+              >
+                {showAllBrands ? 'Show Less' : `Show All ${brands.length} Brands`}
+              </button>
+            </div>
+          )}
+          {brandSearch && brands.filter((b) => b.name.toLowerCase().includes(brandSearch.toLowerCase())).length === 0 && (
+            <p style={{ textAlign: 'center', color: 'var(--text-muted)', marginTop: '1rem', fontSize: '0.9rem' }}>
+              No brands matching "{brandSearch}"
+            </p>
+          )}
         </div>
       </section>
 
@@ -804,7 +841,7 @@ export const HomePage = () => {
             <h2>Browse by Budget</h2>
           </div>
           <div className="budget-pills">
-            {budgetBrackets.map((b) => (
+            {config.budget_brackets.map((b) => (
               <Link
                 key={b.label}
                 to={`/search?${[b.min ? `listing_price_min=${b.min}` : '', b.max ? `listing_price_max=${b.max}` : ''].filter(Boolean).join('&')}`}
@@ -822,28 +859,18 @@ export const HomePage = () => {
         <div className="container">
           <div className="splus-home-banner-content">
             <div className="splus-home-banner-text">
-              <div className="splus-badge-label">S-Plus Premium</div>
-              <h2>Experience Luxury, Pre-Owned</h2>
-              <p>Handpicked premium cars with 300-point inspection, 2-year warranty, and dedicated concierge service.</p>
+              <div className="splus-badge-label">{config.splus_banner.badge}</div>
+              <h2>{config.splus_banner.title}</h2>
+              <p>{config.splus_banner.description}</p>
               <Link to="/splus" className="splus-btn-gold">Explore S-Plus Collection</Link>
             </div>
             <div className="splus-home-banner-features">
-              <div className="splus-home-feature">
-                <span className="splus-home-feature-icon">&#9670;</span>
-                <span>300-Point Inspection</span>
-              </div>
-              <div className="splus-home-feature">
-                <span className="splus-home-feature-icon">&#9733;</span>
-                <span>2-Year Warranty</span>
-              </div>
-              <div className="splus-home-feature">
-                <span className="splus-home-feature-icon">&#9826;</span>
-                <span>White-Glove Delivery</span>
-              </div>
-              <div className="splus-home-feature">
-                <span className="splus-home-feature-icon">&#8635;</span>
-                <span>Personal Advisor</span>
-              </div>
+              {config.splus_banner.features.map((f) => (
+                <div key={f.label} className="splus-home-feature">
+                  <span className="splus-home-feature-icon">{f.icon}</span>
+                  <span>{f.label}</span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -854,28 +881,18 @@ export const HomePage = () => {
         <div className="container">
           <div className="spn-home-banner-content">
             <div className="spn-home-banner-text">
-              <div className="spn-badge" style={{ marginBottom: '0.5rem' }}>S-Plus New</div>
-              <h2>Brand New. Zero Owners. Your Name First.</h2>
-              <p>Premium unregistered, unused, and demo cars from authorized dealers. Full manufacturer warranty included.</p>
+              <div className="spn-badge" style={{ marginBottom: '0.5rem' }}>{config.spn_banner.badge}</div>
+              <h2>{config.spn_banner.title}</h2>
+              <p>{config.spn_banner.description}</p>
               <Link to="/splus-new" className="spn-btn-primary" style={{ display: 'inline-block' }}>Explore New Cars</Link>
             </div>
             <div className="spn-home-banner-features">
-              <div className="spn-home-feature">
-                <span className="spn-home-feature-icon">◇</span>
-                <span>Factory Fresh</span>
-              </div>
-              <div className="spn-home-feature">
-                <span className="spn-home-feature-icon">★</span>
-                <span>Full Warranty</span>
-              </div>
-              <div className="spn-home-feature">
-                <span className="spn-home-feature-icon">◈</span>
-                <span>First Registration</span>
-              </div>
-              <div className="spn-home-feature">
-                <span className="spn-home-feature-icon">⟐</span>
-                <span>White-Glove Delivery</span>
-              </div>
+              {config.spn_banner.features.map((f) => (
+                <div key={f.label} className="spn-home-feature">
+                  <span className="spn-home-feature-icon">{f.icon}</span>
+                  <span>{f.label}</span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -888,7 +905,7 @@ export const HomePage = () => {
             <h2>Browse by Fuel Type</h2>
           </div>
           <div className="fuel-type-grid">
-            {fuelTypes.map((f) => (
+            {config.fuel_types.map((f) => (
               <Link key={f.name} to={`/search?fuel_type=${encodeURIComponent(f.name)}`} className="fuel-type-card">
                 <span className="fuel-type-icon">{f.icon}</span>
                 <span className="fuel-type-name">{f.name}</span>
@@ -931,7 +948,7 @@ export const HomePage = () => {
             <span style={{ color: '#FFC107', fontSize: '1.1rem' }}>★★★★★ <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>4.8/5 rating</span></span>
           </div>
           <div className="reviews-grid">
-            {reviews.map((r) => (
+            {config.reviews.map((r) => (
               <div key={r.name} className="review-card">
                 <div className="review-stars">{'★'.repeat(r.rating)}</div>
                 <p className="review-text">"{r.text}"</p>
@@ -953,13 +970,12 @@ export const HomePage = () => {
         <div className="container">
           <div className="sell-cta-section">
             <div>
-              <h2>Want to Sell Your Car?</h2>
-              <p>Get the best price for your car. Enter your registration number to get started.</p>
+              <h2>{config.sell_cta.title}</h2>
+              <p>{config.sell_cta.description}</p>
             </div>
-            <div className="sell-cta-form">
-              <input className="sell-cta-input" placeholder="Enter Registration No. (e.g., DL 01 AB 1234)" />
-              <button className="btn btn-primary btn-lg" type="button">Get Best Price</button>
-            </div>
+            <Link to="/sell" className="btn btn-primary btn-lg">
+              Sell Your Car &rarr;
+            </Link>
           </div>
         </div>
       </section>

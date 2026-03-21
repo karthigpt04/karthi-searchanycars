@@ -139,78 +139,72 @@ export const PriceRangeSlider = ({
 
   const isDark = theme === 'dark' || theme === 'dark-green'
   const accentColor = theme === 'dark-green' ? 'var(--spn-accent, #00C9A7)' : isDark ? 'var(--sp-gold, #d4a853)' : 'var(--navy, #1a2744)'
-  const trackBg = isDark ? 'rgba(255,255,255,0.1)' : '#e0e4ea'
-  const thumbBorder = isDark ? 'rgba(255,255,255,0.3)' : '#ccc'
-  const labelColor = isDark ? 'rgba(255,255,255,0.7)' : 'var(--text-secondary, #555)'
+  const trackBg = isDark ? 'rgba(255,255,255,0.08)' : '#e0e4ea'
+  const labelColor = isDark ? 'rgba(255,255,255,0.5)' : 'var(--text-secondary, #555)'
+
+  const themeClass = `price-slider-wrapper price-slider--${theme}`
 
   return (
-    <div className="price-slider-wrapper">
-      <div className="price-slider-labels" style={{ color: labelColor }}>
-        <span>{displayMin <= min ? formatLabel(min) : formatLabel(displayMin)}</span>
-        <span>{displayMax >= max ? formatLabel(max) : formatLabel(displayMax)}</span>
+    <div className={themeClass}>
+      <div className="price-slider-header">
+        <span className="price-slider-title" style={{ color: isDark ? 'rgba(255,255,255,0.6)' : '#888' }}>Price Range</span>
+        <div className="price-slider-values" style={{ color: isDark ? '#fff' : 'var(--navy, #1a2744)' }}>
+          <span>{displayMin <= min ? formatLabel(min) : formatLabel(displayMin)}</span>
+          <span className="price-slider-values-sep" style={{ color: labelColor }}> — </span>
+          <span>{displayMax >= max ? formatLabel(max) : formatLabel(displayMax)}</span>
+        </div>
       </div>
-      <div
-        ref={trackRef}
-        className="price-slider-track"
-        style={{ background: trackBg }}
-        onMouseDown={(e) => {
-          const pos = getPositionFromEvent(e)
-          // Decide which thumb is closer
-          if (Math.abs(pos - sliderMin) < Math.abs(pos - sliderMax)) {
-            setSliderMin(pos)
-            setDragging('min')
-          } else {
-            setSliderMax(pos)
-            setDragging('max')
-          }
-        }}
-        onTouchStart={(e) => {
-          const pos = getPositionFromEvent(e)
-          if (Math.abs(pos - sliderMin) < Math.abs(pos - sliderMax)) {
-            setSliderMin(pos)
-            setDragging('min')
-          } else {
-            setSliderMax(pos)
-            setDragging('max')
-          }
-        }}
-      >
+      <div className="price-slider-track-area">
         <div
-          className="price-slider-fill"
-          style={{
-            left: `${leftPct}%`,
-            right: `${rightPct}%`,
-            background: accentColor,
+          ref={trackRef}
+          className="price-slider-track"
+          style={{ background: trackBg }}
+          onMouseDown={(e) => {
+            const pos = getPositionFromEvent(e)
+            if (Math.abs(pos - sliderMin) < Math.abs(pos - sliderMax)) {
+              setSliderMin(pos)
+              setDragging('min')
+            } else {
+              setSliderMax(pos)
+              setDragging('max')
+            }
           }}
-        />
-        <div
-          className="price-slider-thumb"
-          style={{
-            left: `${leftPct}%`,
-            borderColor: dragging === 'min' ? accentColor : thumbBorder,
-            boxShadow: dragging === 'min' ? `0 0 0 3px ${accentColor}33` : 'none',
+          onTouchStart={(e) => {
+            const pos = getPositionFromEvent(e)
+            if (Math.abs(pos - sliderMin) < Math.abs(pos - sliderMax)) {
+              setSliderMin(pos)
+              setDragging('min')
+            } else {
+              setSliderMax(pos)
+              setDragging('max')
+            }
           }}
-          onMouseDown={(e) => { e.stopPropagation(); setDragging('min') }}
-          onTouchStart={(e) => { e.stopPropagation(); setDragging('min') }}
         >
-          <div className="price-slider-tooltip" style={{ background: accentColor }}>
-            {displayMin <= min ? formatLabel(min) : formatLabel(displayMin)}
-          </div>
+          <div
+            className="price-slider-fill"
+            style={{
+              left: `${leftPct}%`,
+              right: `${rightPct}%`,
+              background: accentColor,
+            }}
+          />
+          <div
+            className={`price-slider-thumb${dragging === 'min' ? ' is-dragging' : ''}`}
+            style={{ left: `${leftPct}%`, '--accent': accentColor } as React.CSSProperties}
+            onMouseDown={(e) => { e.stopPropagation(); setDragging('min') }}
+            onTouchStart={(e) => { e.stopPropagation(); setDragging('min') }}
+          />
+          <div
+            className={`price-slider-thumb${dragging === 'max' ? ' is-dragging' : ''}`}
+            style={{ left: `${100 - rightPct}%`, '--accent': accentColor } as React.CSSProperties}
+            onMouseDown={(e) => { e.stopPropagation(); setDragging('max') }}
+            onTouchStart={(e) => { e.stopPropagation(); setDragging('max') }}
+          />
         </div>
-        <div
-          className="price-slider-thumb"
-          style={{
-            left: `${100 - rightPct}%`,
-            borderColor: dragging === 'max' ? accentColor : thumbBorder,
-            boxShadow: dragging === 'max' ? `0 0 0 3px ${accentColor}33` : 'none',
-          }}
-          onMouseDown={(e) => { e.stopPropagation(); setDragging('max') }}
-          onTouchStart={(e) => { e.stopPropagation(); setDragging('max') }}
-        >
-          <div className="price-slider-tooltip" style={{ background: accentColor }}>
-            {displayMax >= max ? formatLabel(max) : formatLabel(displayMax)}
-          </div>
-        </div>
+      </div>
+      <div className="price-slider-labels" style={{ color: labelColor }}>
+        <span>{formatLabel(min)}</span>
+        <span>{formatLabel(max)}</span>
       </div>
     </div>
   )

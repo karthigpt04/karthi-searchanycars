@@ -1,52 +1,55 @@
 import 'dotenv/config'
-import cors from 'cors'
 import express from 'express'
+import cookieParser from 'cookie-parser'
 import multer from 'multer'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+
+import config from './config.js'
 import { bootstrapDatabase } from './bootstrap.js'
 import { db } from './db.js'
 import { uploadImage } from './storage.js'
 
+import { requestLogger } from './middleware/requestLogger.js'
+import { setupSecurity } from './middleware/security.js'
+import { extractUser, requireAdmin } from './middleware/auth.js'
+import { errorHandler } from './middleware/errorHandler.js'
+
+import { authRouter } from './routes/auth.js'
+import { sseRouter, broadcast } from './routes/sse.js'
+
+// ── Derive __dirname for ESM ──
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
+// ── Bootstrap database ──
 bootstrapDatabase()
 
+// ── Create app ──
 const app = express()
-const port = Number(process.env.PORT || 4000)
-const uploadsDir = process.env.UPLOADS_DIR || 'uploads'
+
+// ── Uploads directory ──
+const uploadsDir = config.uploadsDir
 fs.mkdirSync('uploads', { recursive: true })
 fs.mkdirSync(uploadsDir, { recursive: true })
 
+// ── Multer ──
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: Number(process.env.MAX_IMAGE_SIZE_BYTES || 6 * 1024 * 1024),
+    fileSize: config.maxImageSize,
   },
 })
 
-const rawCorsOrigins = process.env.CORS_ORIGINS || ''
-const allowedOrigins = rawCorsOrigins
-  .split(',')
-  .map((origin) => origin.trim())
-  .filter(Boolean)
-
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
-        callback(null, true)
-        return
-      }
-
-      callback(new Error('Origin is not allowed by CORS'))
-    },
-  }),
-)
+// ── Middleware chain ──
+app.use(requestLogger)
+setupSecurity(app)
 app.use(express.json({ limit: '3mb' }))
+app.use(cookieParser())
+app.use(extractUser)
 
+// ── Static files ──
 if (uploadsDir === 'uploads') {
   app.use('/uploads', express.static('uploads'))
 } else {
@@ -55,6 +58,16 @@ if (uploadsDir === 'uploads') {
 app.use(express.static('dist'))
 
 const hasWebBuild = fs.existsSync(path.join(__dirname, '..', 'dist', 'index.html'))
+
+// ── Auth routes ──
+app.use('/api/auth', authRouter)
+
+// ── SSE route ──
+app.use('/api/events', sseRouter)
+
+// ────────────────────────────────────────────────────────────────────────────
+//  Helpers (inline)
+// ────────────────────────────────────────────────────────────────────────────
 
 const parseJson = (value, fallback) => {
   try {
@@ -174,178 +187,7 @@ const mapWhere = (query) => {
   return { whereClause: clauses.join(' AND '), values }
 }
 
-app.get('/api/health', (_req, res) => {
-  res.json({
-    ok: true,
-    service: 'searchanycars-api',
-    storageMode: 'local-filesystem',
-    dbMode: 'sqlite',
-  })
-})
-
-app.post('/api/uploads/image', upload.single('image'), async (req, res) => {
-  try {
-    if (!req.file) {
-      res.status(400).json({ message: 'Image file is required in multipart field "image".' })
-      return
-    }
-
-    if (!req.file.mimetype.startsWith('image/')) {
-      res.status(400).json({ message: 'Only image uploads are supported.' })
-      return
-    }
-
-    const result = await uploadImage({
-      buffer: req.file.buffer,
-      originalName: req.file.originalname,
-      contentType: req.file.mimetype,
-    })
-
-    res.status(201).json(result)
-  } catch (error) {
-    res.status(500).json({ message: error instanceof Error ? error.message : 'Image upload failed.' })
-  }
-})
-
-app.get('/api/categories', (_req, res) => {
-  const rows = db.prepare('SELECT * FROM categories ORDER BY name ASC').all()
-  res.json(rows)
-})
-
-app.post('/api/categories', (req, res) => {
-  const { name, slug, vehicleType, description = '' } = req.body
-  if (!name || !slug || !vehicleType) {
-    res.status(400).json({ message: 'name, slug and vehicleType are required.' })
-    return
-  }
-
-  const result = db
-    .prepare('INSERT INTO categories (name, slug, vehicle_type, description) VALUES (?, ?, ?, ?)')
-    .run(name, slug, vehicleType, description)
-
-  const category = db.prepare('SELECT * FROM categories WHERE id = ?').get(result.lastInsertRowid)
-  res.status(201).json(category)
-})
-
-app.put('/api/categories/:id', (req, res) => {
-  const id = Number(req.params.id)
-  const { name, slug, vehicleType, description = '' } = req.body
-  db.prepare(
-    `
-      UPDATE categories
-      SET name = ?, slug = ?, vehicle_type = ?, description = ?, updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `,
-  ).run(name, slug, vehicleType, description, id)
-
-  const category = db.prepare('SELECT * FROM categories WHERE id = ?').get(id)
-  if (!category) {
-    res.status(404).json({ message: 'Category not found' })
-    return
-  }
-
-  res.json(category)
-})
-
-app.delete('/api/categories/:id', (req, res) => {
-  const id = Number(req.params.id)
-  db.prepare('DELETE FROM categories WHERE id = ?').run(id)
-  res.status(204).send()
-})
-
-app.get('/api/filter-definitions', (_req, res) => {
-  const rows = db.prepare('SELECT * FROM filter_definitions ORDER BY label ASC').all()
-  res.json(
-    rows.map((row) => ({
-      ...row,
-      options: parseJson(row.options_json, []),
-    })),
-  )
-})
-
-app.get('/api/category-filters/:categoryId', (req, res) => {
-  const categoryId = Number(req.params.categoryId)
-  const rows = db
-    .prepare(
-      `
-      SELECT fd.*
-      FROM category_filter_map cfm
-      JOIN filter_definitions fd ON fd.id = cfm.filter_id
-      WHERE cfm.category_id = ?
-      ORDER BY fd.label ASC
-    `,
-    )
-    .all(categoryId)
-
-  res.json(
-    rows.map((row) => ({
-      ...row,
-      options: parseJson(row.options_json, []),
-    })),
-  )
-})
-
-app.put('/api/category-filters/:categoryId', (req, res) => {
-  const categoryId = Number(req.params.categoryId)
-  const filterIds = Array.isArray(req.body.filterIds)
-    ? req.body.filterIds.map((value) => Number(value)).filter((value) => Number.isFinite(value))
-    : []
-
-  const tx = db.transaction(() => {
-    db.prepare('DELETE FROM category_filter_map WHERE category_id = ?').run(categoryId)
-    const insert = db.prepare('INSERT OR IGNORE INTO category_filter_map (category_id, filter_id) VALUES (?, ?)')
-    for (const filterId of filterIds) {
-      insert.run(categoryId, filterId)
-    }
-  })
-
-  tx()
-  res.json({ categoryId, filterIds })
-})
-
-app.get('/api/listings', (req, res) => {
-  const { whereClause, values } = mapWhere(req.query)
-  const orderBy = req.query.sortBy === 'priceAsc'
-    ? 'l.listing_price_inr ASC'
-    : req.query.sortBy === 'priceDesc'
-      ? 'l.listing_price_inr DESC'
-      : 'l.model_year DESC, l.created_at DESC'
-
-  const rows = db
-    .prepare(
-      `
-      SELECT l.*, c.name as category_name, c.slug as category_slug
-      FROM listings l
-      LEFT JOIN categories c ON c.id = l.category_id
-      WHERE ${whereClause}
-      ORDER BY ${orderBy}
-    `,
-    )
-    .all(...values)
-
-  res.json(rows.map(toListing))
-})
-
-app.get('/api/listings/:id', (req, res) => {
-  const id = Number(req.params.id)
-  const row = db
-    .prepare(
-      `
-      SELECT l.*, c.name as category_name, c.slug as category_slug
-      FROM listings l
-      LEFT JOIN categories c ON c.id = l.category_id
-      WHERE l.id = ?
-    `,
-    )
-    .get(id)
-
-  if (!row) {
-    res.status(404).json({ message: 'Listing not found' })
-    return
-  }
-
-  res.json(toListing(row))
-})
+const stripHtml = (str) => typeof str === 'string' ? str.replace(/<[^>]*>/g, '') : str
 
 const listingUpsertColumns = [
   'category_id',
@@ -443,9 +285,204 @@ const normalizeListingPayload = (payload) => ({
   specs_json: JSON.stringify(payload.specs ?? {}),
 })
 
-const stripHtml = (str) => typeof str === 'string' ? str.replace(/<[^>]*>/g, '') : str
+// ────────────────────────────────────────────────────────────────────────────
+//  Routes — Health
+// ────────────────────────────────────────────────────────────────────────────
 
-app.post('/api/listings', (req, res) => {
+app.get('/api/health', (_req, res) => {
+  res.json({
+    ok: true,
+    service: 'searchanycars-api',
+    storageMode: 'local-filesystem',
+    dbMode: 'sqlite',
+  })
+})
+
+// ────────────────────────────────────────────────────────────────────────────
+//  Routes — Uploads
+// ────────────────────────────────────────────────────────────────────────────
+
+app.post('/api/uploads/image', requireAdmin, upload.single('image'), async (req, res) => {
+  try {
+    if (!req.file) {
+      res.status(400).json({ message: 'Image file is required in multipart field "image".' })
+      return
+    }
+
+    if (!req.file.mimetype.startsWith('image/')) {
+      res.status(400).json({ message: 'Only image uploads are supported.' })
+      return
+    }
+
+    const result = await uploadImage({
+      buffer: req.file.buffer,
+      originalName: req.file.originalname,
+      contentType: req.file.mimetype,
+    })
+
+    res.status(201).json(result)
+  } catch (error) {
+    res.status(500).json({ message: error instanceof Error ? error.message : 'Image upload failed.' })
+  }
+})
+
+// ────────────────────────────────────────────────────────────────────────────
+//  Routes — Categories
+// ────────────────────────────────────────────────────────────────────────────
+
+app.get('/api/categories', (_req, res) => {
+  const rows = db.prepare('SELECT * FROM categories ORDER BY name ASC').all()
+  res.json(rows)
+})
+
+app.post('/api/categories', requireAdmin, (req, res) => {
+  const { name, slug, vehicleType, description = '' } = req.body
+  if (!name || !slug || !vehicleType) {
+    res.status(400).json({ message: 'name, slug and vehicleType are required.' })
+    return
+  }
+
+  const result = db
+    .prepare('INSERT INTO categories (name, slug, vehicle_type, description) VALUES (?, ?, ?, ?)')
+    .run(name, slug, vehicleType, description)
+
+  const category = db.prepare('SELECT * FROM categories WHERE id = ?').get(result.lastInsertRowid)
+  res.status(201).json(category)
+})
+
+app.put('/api/categories/:id', requireAdmin, (req, res) => {
+  const id = Number(req.params.id)
+  const { name, slug, vehicleType, description = '' } = req.body
+  db.prepare(
+    `
+      UPDATE categories
+      SET name = ?, slug = ?, vehicle_type = ?, description = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `,
+  ).run(name, slug, vehicleType, description, id)
+
+  const category = db.prepare('SELECT * FROM categories WHERE id = ?').get(id)
+  if (!category) {
+    res.status(404).json({ message: 'Category not found' })
+    return
+  }
+
+  res.json(category)
+})
+
+app.delete('/api/categories/:id', requireAdmin, (req, res) => {
+  const id = Number(req.params.id)
+  db.prepare('DELETE FROM categories WHERE id = ?').run(id)
+  res.status(204).send()
+})
+
+// ────────────────────────────────────────────────────────────────────────────
+//  Routes — Filter Definitions
+// ────────────────────────────────────────────────────────────────────────────
+
+app.get('/api/filter-definitions', (_req, res) => {
+  const rows = db.prepare('SELECT * FROM filter_definitions ORDER BY label ASC').all()
+  res.json(
+    rows.map((row) => ({
+      ...row,
+      options: parseJson(row.options_json, []),
+    })),
+  )
+})
+
+// ────────────────────────────────────────────────────────────────────────────
+//  Routes — Category Filters
+// ────────────────────────────────────────────────────────────────────────────
+
+app.get('/api/category-filters/:categoryId', (req, res) => {
+  const categoryId = Number(req.params.categoryId)
+  const rows = db
+    .prepare(
+      `
+      SELECT fd.*
+      FROM category_filter_map cfm
+      JOIN filter_definitions fd ON fd.id = cfm.filter_id
+      WHERE cfm.category_id = ?
+      ORDER BY fd.label ASC
+    `,
+    )
+    .all(categoryId)
+
+  res.json(
+    rows.map((row) => ({
+      ...row,
+      options: parseJson(row.options_json, []),
+    })),
+  )
+})
+
+app.put('/api/category-filters/:categoryId', requireAdmin, (req, res) => {
+  const categoryId = Number(req.params.categoryId)
+  const filterIds = Array.isArray(req.body.filterIds)
+    ? req.body.filterIds.map((value) => Number(value)).filter((value) => Number.isFinite(value))
+    : []
+
+  const tx = db.transaction(() => {
+    db.prepare('DELETE FROM category_filter_map WHERE category_id = ?').run(categoryId)
+    const insert = db.prepare('INSERT OR IGNORE INTO category_filter_map (category_id, filter_id) VALUES (?, ?)')
+    for (const filterId of filterIds) {
+      insert.run(categoryId, filterId)
+    }
+  })
+
+  tx()
+  res.json({ categoryId, filterIds })
+})
+
+// ────────────────────────────────────────────────────────────────────────────
+//  Routes — Listings
+// ────────────────────────────────────────────────────────────────────────────
+
+app.get('/api/listings', (req, res) => {
+  const { whereClause, values } = mapWhere(req.query)
+  const orderBy = req.query.sortBy === 'priceAsc'
+    ? 'l.listing_price_inr ASC'
+    : req.query.sortBy === 'priceDesc'
+      ? 'l.listing_price_inr DESC'
+      : 'l.model_year DESC, l.created_at DESC'
+
+  const rows = db
+    .prepare(
+      `
+      SELECT l.*, c.name as category_name, c.slug as category_slug
+      FROM listings l
+      LEFT JOIN categories c ON c.id = l.category_id
+      WHERE ${whereClause}
+      ORDER BY ${orderBy}
+    `,
+    )
+    .all(...values)
+
+  res.json(rows.map(toListing))
+})
+
+app.get('/api/listings/:id', (req, res) => {
+  const id = Number(req.params.id)
+  const row = db
+    .prepare(
+      `
+      SELECT l.*, c.name as category_name, c.slug as category_slug
+      FROM listings l
+      LEFT JOIN categories c ON c.id = l.category_id
+      WHERE l.id = ?
+    `,
+    )
+    .get(id)
+
+  if (!row) {
+    res.status(404).json({ message: 'Listing not found' })
+    return
+  }
+
+  res.json(toListing(row))
+})
+
+app.post('/api/listings', requireAdmin, (req, res) => {
   if (!req.body || typeof req.body !== 'object') {
     res.status(400).json({ message: 'Request body is required.' })
     return
@@ -488,7 +525,7 @@ app.post('/api/listings', (req, res) => {
   }
 })
 
-app.put('/api/listings/:id', (req, res) => {
+app.put('/api/listings/:id', requireAdmin, (req, res) => {
   const id = Number(req.params.id)
   if (!Number.isFinite(id) || id <= 0) {
     res.status(400).json({ message: 'Invalid listing ID.' })
@@ -529,7 +566,7 @@ app.put('/api/listings/:id', (req, res) => {
   }
 })
 
-app.delete('/api/listings/:id', (req, res) => {
+app.delete('/api/listings/:id', requireAdmin, (req, res) => {
   const id = Number(req.params.id)
   if (!Number.isFinite(id) || id <= 0) {
     res.status(400).json({ message: 'Invalid listing ID.' })
@@ -543,6 +580,44 @@ app.delete('/api/listings/:id', (req, res) => {
   }
   res.status(204).send()
 })
+
+// ────────────────────────────────────────────────────────────────────────────
+//  Routes — Site Config
+// ────────────────────────────────────────────────────────────────────────────
+
+app.get('/api/site-config', (_req, res) => {
+  const rows = db.prepare('SELECT key, value FROM site_config').all()
+  const siteConfig = {}
+  for (const row of rows) {
+    try { siteConfig[row.key] = JSON.parse(row.value) } catch { siteConfig[row.key] = row.value }
+  }
+  res.json(siteConfig)
+})
+
+app.get('/api/site-config/:key', (req, res) => {
+  const row = db.prepare('SELECT key, value FROM site_config WHERE key = ?').get(req.params.key)
+  if (!row) return res.status(404).json({ message: 'Config key not found' })
+  let value
+  try { value = JSON.parse(row.value) } catch { value = row.value }
+  res.json({ key: row.key, value })
+})
+
+app.put('/api/site-config/:key', requireAdmin, (req, res) => {
+  const key = req.params.key
+  const value = JSON.stringify(req.body.value)
+  db.prepare(
+    `INSERT INTO site_config (key, value, updated_at) VALUES (?, ?, datetime('now'))
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = datetime('now')`
+  ).run(key, value)
+
+  broadcast({ type: 'config-updated', key })
+
+  res.json({ key, value: req.body.value })
+})
+
+// ────────────────────────────────────────────────────────────────────────────
+//  SPA Fallback
+// ────────────────────────────────────────────────────────────────────────────
 
 app.get('/{*any}', (req, res, next) => {
   if (req.path.startsWith('/api/') || req.path.startsWith('/uploads/')) {
@@ -558,6 +633,43 @@ app.get('/{*any}', (req, res, next) => {
   res.sendFile(path.join(__dirname, '../dist/index.html'))
 })
 
-app.listen(port, () => {
-  console.log(`SearchAnyCars API running on http://localhost:${port}`)
+// ────────────────────────────────────────────────────────────────────────────
+//  Error handler (must be last)
+// ────────────────────────────────────────────────────────────────────────────
+
+app.use(errorHandler)
+
+// ────────────────────────────────────────────────────────────────────────────
+//  Start server
+// ────────────────────────────────────────────────────────────────────────────
+
+const server = app.listen(config.port, '0.0.0.0', () => {
+  console.log(`SearchAnyCars API running on http://0.0.0.0:${config.port}`)
 })
+
+// ────────────────────────────────────────────────────────────────────────────
+//  Graceful shutdown
+// ────────────────────────────────────────────────────────────────────────────
+
+const shutdown = (signal) => {
+  console.log(`\n${signal} received — shutting down gracefully...`)
+  server.close(() => {
+    console.log('HTTP server closed.')
+    try {
+      db.close()
+      console.log('Database connection closed.')
+    } catch {
+      // already closed or never opened
+    }
+    process.exit(0)
+  })
+
+  // Force exit after 10 seconds if connections linger
+  setTimeout(() => {
+    console.error('Forced shutdown after timeout.')
+    process.exit(1)
+  }, 10_000).unref()
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'))
+process.on('SIGINT', () => shutdown('SIGINT'))

@@ -41,6 +41,7 @@ export const SearchPage = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [comparedIds, setComparedIds] = useState<number[]>([])
+  const [mobileFilterOpen, setMobileFilterOpen] = useState(false)
   const [displayCount, setDisplayCount] = useState(12)
   const [wishlist, setWishlist] = useState<number[]>(() => {
     try { return JSON.parse(localStorage.getItem(WISHLIST_STORAGE_KEY) || '[]') } catch { return [] }
@@ -113,6 +114,16 @@ export const SearchPage = () => {
   // Reset display count when filters change
   useEffect(() => { setDisplayCount(12) }, [search, brand, fuelType, transmission, bodyType, ownerType, selectedCities, priceMin, priceMax, yearMin, yearMax, kmMax, activeQuickTags])
 
+  // Prevent body scrolling when mobile filter drawer is open
+  useEffect(() => {
+    if (mobileFilterOpen) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => { document.body.style.overflow = '' }
+  }, [mobileFilterOpen])
+
   const clearFilters = () => {
     setSearch(''); setBrand(''); setFuelType(''); setTransmission(''); setBodyType('')
     setOwnerType(''); setSelectedCities([]); setPriceMin(''); setPriceMax('')
@@ -159,9 +170,18 @@ export const SearchPage = () => {
             ))}
           </div>
 
+          <button className="mobile-filter-fab" onClick={() => setMobileFilterOpen(true)} type="button">
+            ☰ Filters {activeFilterCount > 0 ? `(${activeFilterCount})` : ''}
+          </button>
+
           <div className="search-layout">
             {/* Filter Sidebar */}
-            <aside className="filter-panel">
+            {mobileFilterOpen && <div className="filter-panel-backdrop" onClick={() => setMobileFilterOpen(false)} />}
+            <aside className={`filter-panel ${mobileFilterOpen ? 'filter-panel-open' : ''}`}>
+              <div className="filter-panel-mobile-header">
+                <h3>Filters</h3>
+                <button className="filter-panel-close" onClick={() => setMobileFilterOpen(false)} type="button">✕</button>
+              </div>
               <div className="filter-header">
                 <h3>Filters {activeFilterCount > 0 ? `(${activeFilterCount})` : ''}</h3>
                 <button className="filter-clear" onClick={clearFilters} type="button">Clear All</button>
@@ -306,6 +326,12 @@ export const SearchPage = () => {
                   </div>
                 )}
               </div>
+
+              <div className="filter-panel-apply">
+                <button className="btn btn-primary" onClick={() => setMobileFilterOpen(false)} type="button" style={{ width: '100%' }}>
+                  Show {cars.length} Cars
+                </button>
+              </div>
             </aside>
 
             {/* Results Area */}
@@ -325,9 +351,13 @@ export const SearchPage = () => {
                     ))}
                   </div>
                 )}
-                <select className="sort-select" value={sortBy} onChange={(e) => setSortBy(e.target.value)} aria-label="Sort results">
-                  {sortOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
+                <div className="sort-pills">
+                  {sortOptions.map((o) => (
+                    <button key={o.value} className={`sort-pill ${sortBy === o.value ? 'active' : ''}`} onClick={() => setSortBy(o.value)} type="button">
+                      {o.value === 'priceAsc' ? '↑ ' : o.value === 'priceDesc' ? '↓ ' : ''}{o.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {comparedIds.length > 0 && (

@@ -1,7 +1,10 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
+import { useSiteConfig } from '../context/SiteConfigContext'
 
 export const ContactPage = () => {
+  const { config } = useSiteConfig()
+  const ci = config.contact_info
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
@@ -33,7 +36,7 @@ export const ContactPage = () => {
                 <div className="contact-info-icon">📞</div>
                 <div>
                   <h4 style={{ fontSize: '0.95rem' }}>Phone</h4>
-                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>+91 1800-123-4567 (Toll Free)</p>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>{ci.phone}</p>
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>Mon-Sat, 9 AM - 8 PM</p>
                 </div>
               </div>
@@ -42,7 +45,7 @@ export const ContactPage = () => {
                 <div className="contact-info-icon">💬</div>
                 <div>
                   <h4 style={{ fontSize: '0.95rem' }}>WhatsApp</h4>
-                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>+91 98765-43210</p>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>{ci.whatsapp}</p>
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>Quick responses, 24/7</p>
                 </div>
               </div>
@@ -51,7 +54,7 @@ export const ContactPage = () => {
                 <div className="contact-info-icon">✉️</div>
                 <div>
                   <h4 style={{ fontSize: '0.95rem' }}>Email</h4>
-                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>hello@searchanycars.com</p>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>{ci.email}</p>
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>We respond within 24 hours</p>
                 </div>
               </div>
@@ -60,10 +63,7 @@ export const ContactPage = () => {
                 <div className="contact-info-icon">📍</div>
                 <div>
                   <h4 style={{ fontSize: '0.95rem' }}>Office</h4>
-                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                    SearchAnyCars HQ, Tower B, 4th Floor,<br />
-                    Sector 62, Noida, UP 201301
-                  </p>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>{ci.address}</p>
                 </div>
               </div>
             </div>

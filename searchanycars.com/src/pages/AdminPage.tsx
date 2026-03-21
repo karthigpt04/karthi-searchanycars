@@ -60,9 +60,10 @@ export const AdminPage = () => {
               <h1 className="adm-title">Inventory Dashboard</h1>
               <p className="adm-subtitle">{listings.length} total listings</p>
             </div>
-            <Link to="/admin/car/new" className="btn btn-primary btn-lg">
-              + List New Car
-            </Link>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <Link to="/admin/settings" className="btn btn-outline btn-lg">Site Settings</Link>
+              <Link to="/admin/car/new" className="btn btn-primary btn-lg">+ List New Car</Link>
+            </div>
           </div>
         </div>
       </div>

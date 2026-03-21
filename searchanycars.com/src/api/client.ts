@@ -5,12 +5,11 @@ import type {
   ListingPayload,
 } from '../types'
 
-const API_BASE =
-  import.meta.env.VITE_API_URL ??
-  (import.meta.env.PROD ? '/api' : 'http://localhost:4000/api')
+const API_BASE = import.meta.env.PROD ? '/api' : '/api'
 
 const request = async <T>(path: string, init?: RequestInit): Promise<T> => {
   const response = await fetch(`${API_BASE}${path}`, {
+    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
       ...(init?.headers ?? {}),
@@ -75,6 +74,7 @@ export const api = {
     formData.append('image', file)
 
     const response = await fetch(`${API_BASE}/uploads/image`, {
+      credentials: 'include',
       method: 'POST',
       body: formData,
     })
@@ -86,4 +86,31 @@ export const api = {
 
     return (await response.json()) as { url: string; path: string; fileName: string }
   },
+
+  login: (email: string, password: string) =>
+    request<{ user: unknown }>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
+  register: (email: string, password: string, name: string) =>
+    request<{ user: unknown }>('/auth/register', { method: 'POST', body: JSON.stringify({ email, password, name }) }),
+  refreshToken: () =>
+    request<{ user: unknown }>('/auth/refresh', { method: 'POST' }),
+  logout: () =>
+    request<void>('/auth/logout', { method: 'POST' }),
+  getMe: () =>
+    request<{ user: unknown }>('/auth/me'),
+  getUsers: () =>
+    request<Array<unknown>>('/auth/users'),
+  createUser: (data: { email: string; password: string; name: string; role: string }) =>
+    request<{ user: unknown }>('/auth/users', { method: 'POST', body: JSON.stringify(data) }),
+  deleteUser: (id: number) =>
+    request<void>(`/auth/users/${id}`, { method: 'DELETE' }),
+  updateUser: (id: number, data: Record<string, unknown>) =>
+    request<{ user: unknown }>(`/auth/users/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+
+  getSiteConfig: () => request<Record<string, unknown>>('/site-config'),
+  getSiteConfigKey: (key: string) => request<{ key: string; value: unknown }>(`/site-config/${key}`),
+  updateSiteConfig: (key: string, value: unknown) =>
+    request<{ key: string; value: unknown }>(`/site-config/${key}`, {
+      method: 'PUT',
+      body: JSON.stringify({ value }),
+    }),
 }

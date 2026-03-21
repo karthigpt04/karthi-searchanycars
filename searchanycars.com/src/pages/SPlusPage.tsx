@@ -75,6 +75,15 @@ export const SPlusPage = () => {
   const [activeQuickTags, setActiveQuickTags] = useState<string[]>([])
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
 
+  useEffect(() => {
+    if (mobileFiltersOpen) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => { document.body.style.overflow = '' }
+  }, [mobileFiltersOpen])
+
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     budget: true, brand: true, fuel: true, transmission: true, body: true,
     year: false, km: true, owner: false, city: false, color: false,
@@ -240,11 +249,15 @@ export const SPlusPage = () => {
           </button>
 
           <div className="splus-layout">
+            {mobileFiltersOpen && <div className="filter-panel-backdrop" onClick={() => setMobileFiltersOpen(false)} style={{ background: 'rgba(0,0,0,0.7)' }} />}
             {/* Filter Sidebar */}
-            <aside className={`sp-filter-panel ${mobileFiltersOpen ? 'open' : ''}`}>
+            <aside className={`sp-filter-panel ${mobileFiltersOpen ? 'open filter-panel-open' : ''}`}>
               <div className="sp-filter-header">
                 <h3>Filters {activeFilterCount > 0 ? `(${activeFilterCount})` : ''}</h3>
-                <button className="sp-filter-clear" onClick={clearFilters} type="button">Clear All</button>
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  <button className="sp-filter-clear" onClick={clearFilters} type="button">Clear All</button>
+                  <button className="filter-panel-close" onClick={() => setMobileFiltersOpen(false)} type="button" aria-label="Close filters">✕</button>
+                </div>
               </div>
 
               {/* Search */}
@@ -420,6 +433,12 @@ export const SPlusPage = () => {
                   </div>
                 )}
               </div>
+
+              <div className="filter-panel-apply" style={{ background: 'var(--sp-bg-card)', borderColor: 'var(--sp-border)' }}>
+                <button className="splus-btn-gold" onClick={() => setMobileFiltersOpen(false)} type="button" style={{ width: '100%', textAlign: 'center' }}>
+                  Show Cars
+                </button>
+              </div>
             </aside>
 
             {/* Results */}
@@ -440,9 +459,13 @@ export const SPlusPage = () => {
                     {city && <span className="sp-active-pill">{city} <button onClick={() => setCity('')} type="button">&#10005;</button></span>}
                   </div>
                 )}
-                <select className="sp-sort-select" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
-                  {sortOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
+                <div className="sort-pills sort-pills-dark">
+                  {sortOptions.map((o) => (
+                    <button key={o.value} className={`sort-pill sort-pill-gold ${sortBy === o.value ? 'active' : ''}`} onClick={() => setSortBy(o.value)} type="button">
+                      {o.value === 'priceAsc' ? '↑ ' : o.value === 'priceDesc' ? '↓ ' : ''}{o.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Car Grid */}
@@ -545,7 +568,7 @@ const SPlusCard = ({
         <div className="splus-card-img-wrap">
           <img src={heroImage} alt={car.title} className="splus-card-img" loading="lazy" />
           <span className="splus-card-badge">S-Plus</span>
-          {imageCount > 0 && <span className="splus-card-photo-count">{imageCount} photos</span>}
+          {imageCount > 0 && <span className="splus-card-photo-count">📷 {imageCount}</span>}
           <button
             className={`splus-card-wishlist ${isWishlisted ? 'active' : ''}`}
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleWishlist(car.id) }}
@@ -554,32 +577,25 @@ const SPlusCard = ({
             {isWishlisted ? '❤️' : '♡'}
           </button>
         </div>
-      </Link>
-      <div className="splus-card-body">
-        <Link to={`/car/${car.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+        <div className="splus-card-body">
           <h3 className="splus-card-title">{car.title}</h3>
-        </Link>
-        <div className="splus-card-price-row">
-          <span className="splus-card-price">{formatINR(price)}</span>
-          {monthlyEMI > 0 && <span className="splus-card-emi">EMI {formatINR(monthlyEMI)}/mo</span>}
+          <div className="splus-card-price-row">
+            <span className="splus-card-price">{formatINR(price)}</span>
+            {monthlyEMI > 0 && <span className="splus-card-emi">EMI {formatINR(monthlyEMI)}/mo</span>}
+          </div>
+          <div className="splus-card-specs">
+            <span>{car.model_year ?? '—'}</span>
+            <span className="splus-dot" />
+            <span>{formatKM(car.total_km_driven ?? 0)}</span>
+            <span className="splus-dot" />
+            <span>{car.fuel_type ?? '—'}</span>
+          </div>
+          <div className="splus-card-quick-info">
+            <span className="splus-card-location-tag">📍 {car.location_city ?? '—'}</span>
+            <span className="splus-card-certified">✓ Certified</span>
+          </div>
         </div>
-        <div className="splus-card-specs">
-          <span>{formatKM(car.total_km_driven ?? 0)}</span>
-          <span className="splus-dot" />
-          <span>{car.fuel_type ?? '—'}</span>
-          <span className="splus-dot" />
-          <span>{car.transmission_type ?? '—'}</span>
-        </div>
-        <div className="splus-card-meta">
-          <span>{car.ownership_type ? `${car.ownership_type} Owner` : '—'}</span>
-          <span>{car.model_year ?? '—'}</span>
-          <span>{car.location_city ?? '—'}</span>
-        </div>
-        <div className="splus-card-footer">
-          <span className="splus-card-assured">S-Plus Certified ✓</span>
-          <Link to={`/car/${car.id}`} className="splus-btn-view">View Details</Link>
-        </div>
-      </div>
+      </Link>
     </article>
   )
 }
