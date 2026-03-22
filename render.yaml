@@ -5,8 +5,8 @@ services:
     region: oregon
     plan: free
     rootDir: searchanycars.com
-    buildCommand: npm install && npm run build
-    startCommand: node server/index.js
+    buildCommand: npm run render-build
+    startCommand: npm start
     envVars:
       - key: NODE_ENV
         value: production
