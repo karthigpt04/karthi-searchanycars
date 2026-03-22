@@ -23,6 +23,15 @@ const config = {
   cookieSecure: process.env.COOKIE_SECURE === 'true',
   cookieDomain: process.env.COOKIE_DOMAIN || undefined,
 
+  // Email (company email for sending password reset emails)
+  smtpHost: process.env.SMTP_HOST || 'smtp.gmail.com',
+  smtpPort: Number(process.env.SMTP_PORT || 587),
+  smtpUser: process.env.SMTP_USER || 'karthigpt04@gmail.com',
+  smtpPass: process.env.SMTP_PASS || '',
+  companyEmail: process.env.COMPANY_EMAIL || 'karthigpt04@gmail.com',
+  companyName: process.env.COMPANY_NAME || 'SearchAnyCars',
+  frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
+
   // CSRF
   csrfSecret: process.env.CSRF_SECRET || 'dev-csrf-secret-change-in-prod-32!',
 

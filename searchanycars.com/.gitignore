@@ -23,6 +23,9 @@ dist-ssr
 *.sln
 *.sw?
 
+# Environment files
+.env
+
 # Local runtime data
 data/*.db
 data/*.db-shm

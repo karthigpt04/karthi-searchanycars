@@ -3,6 +3,9 @@ import { Link, Route, Routes, useLocation } from 'react-router-dom'
 import { SiteConfigProvider } from './context/SiteConfigContext'
 import { AuthProvider } from './context/AuthContext'
 import { LoginPage } from './pages/LoginPage'
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
+import { ResetPasswordPage } from './pages/ResetPasswordPage'
+import { ChangePasswordPage } from './pages/ChangePasswordPage'
 import { AdminGuard } from './components/AdminGuard'
 import { SiteFooter } from './components/SiteFooter'
 import { SiteHeader } from './components/SiteHeader'
@@ -60,6 +63,9 @@ function App() {
         <Route path="/contact" element={<ContactPage />} />
         <Route path="/wishlist" element={<WishlistPage />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/change-password" element={<ChangePasswordPage />} />
         <Route path="/admin" element={<AdminGuard><AdminPage /></AdminGuard>} />
         <Route path="/admin/car/new" element={<AdminGuard><AdminCarFormPage /></AdminGuard>} />
         <Route path="/admin/car/:id/edit" element={<AdminGuard><AdminCarFormPage /></AdminGuard>} />

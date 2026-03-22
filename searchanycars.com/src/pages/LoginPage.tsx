@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
 export const LoginPage = () => {
@@ -69,6 +69,13 @@ export const LoginPage = () => {
             <button className="btn btn-primary btn-lg login-submit" type="submit" disabled={loading}>
               {loading ? 'Please wait...' : mode === 'login' ? 'Sign In' : 'Create Account'}
             </button>
+            {mode === 'login' && (
+              <div style={{ textAlign: 'right', marginTop: '0.5rem' }}>
+                <Link to="/forgot-password" className="text-link" style={{ fontSize: '0.875rem', color: 'var(--coral)' }}>
+                  Forgot Password?
+                </Link>
+              </div>
+            )}
           </form>
 
           <p className="login-footer-text">

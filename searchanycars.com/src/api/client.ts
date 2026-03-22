@@ -97,6 +97,12 @@ export const api = {
     request<void>('/auth/logout', { method: 'POST' }),
   getMe: () =>
     request<{ user: unknown }>('/auth/me'),
+  forgotPassword: (email: string) =>
+    request<{ message: string }>('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
+  resetPassword: (token: string, password: string) =>
+    request<{ message: string }>('/auth/reset-password', { method: 'POST', body: JSON.stringify({ token, password }) }),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    request<{ message: string }>('/auth/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) }),
   getUsers: () =>
     request<Array<unknown>>('/auth/users'),
   createUser: (data: { email: string; password: string; name: string; role: string }) =>
