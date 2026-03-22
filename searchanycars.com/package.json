@@ -9,7 +9,7 @@
     "build": "vite build",
     "dev:full": "concurrently \"npm run server\" \"npm run dev\"",
     "start": "node server/index.js",
-    "render-build": "npm install && npm run build",
+    "render-build": "npm install --include=dev && npm run build",
     "lint": "eslint .",
     "preview": "vite preview"
   },
