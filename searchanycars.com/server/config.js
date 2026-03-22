@@ -30,7 +30,7 @@ const config = {
   smtpPass: process.env.SMTP_PASS || '',
   companyEmail: process.env.COMPANY_EMAIL || 'karthigpt04@gmail.com',
   companyName: process.env.COMPANY_NAME || 'SearchAnyCars',
-  frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
+  frontendUrl: process.env.FRONTEND_URL || (process.env.RENDER_EXTERNAL_URL || 'http://localhost:5173'),
 
   // CSRF
   csrfSecret: process.env.CSRF_SECRET || 'dev-csrf-secret-change-in-prod-32!',
