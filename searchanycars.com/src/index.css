@@ -342,7 +342,8 @@ input, select, textarea { font: inherit; font-size: 16px; /* prevents iOS auto-z
   color: #fff;
   padding: 3.5rem 0 4rem;
   position: relative;
-  overflow: hidden;
+  overflow-x: clip;
+  overflow-y: visible;
 }
 
 .hero::before {
@@ -761,7 +762,7 @@ input, select, textarea { font: inherit; font-size: 16px; /* prevents iOS auto-z
   text-decoration: underline;
 }
 .city-dropdown-list {
-  max-height: 200px;
+  max-height: 360px;
   overflow-y: auto;
 }
 .city-dropdown-name {
@@ -912,9 +913,8 @@ input, select, textarea { font: inherit; font-size: 16px; /* prevents iOS auto-z
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
-  max-height: 220px;
-  overflow-y: auto;
   z-index: 100;
+  overflow: visible;
 }
 .city-dropdown-item {
   display: flex;
@@ -3704,10 +3704,10 @@ input, select, textarea { font: inherit; font-size: 16px; /* prevents iOS auto-z
 
   /* ── City dropdown: full-width mobile ── */
   .city-multi-dropdown {
-    max-height: 260px;
+    overflow: visible;
   }
   .city-dropdown-list {
-    max-height: 200px;
+    max-height: 320px;
   }
   .city-dropdown-item {
     padding: 0.65rem 0.85rem;
