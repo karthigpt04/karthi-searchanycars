@@ -38,7 +38,7 @@ export const setAuthCookies = (res, accessToken, refreshToken) => {
   const base = {
     httpOnly: true,
     secure: config.cookieSecure,
-    sameSite: 'lax',
+    sameSite: config.cookieSecure ? 'none' : 'lax',
     path: '/',
     ...(config.cookieDomain ? { domain: config.cookieDomain } : {}),
   }
@@ -47,7 +47,7 @@ export const setAuthCookies = (res, accessToken, refreshToken) => {
 }
 
 export const clearAuthCookies = (res) => {
-  const base = { httpOnly: true, secure: config.cookieSecure, sameSite: 'lax', path: '/' }
+  const base = { httpOnly: true, secure: config.cookieSecure, sameSite: config.cookieSecure ? 'none' : 'lax', path: '/' }
   res.clearCookie('access_token', base)
   res.clearCookie('refresh_token', base)
 }
