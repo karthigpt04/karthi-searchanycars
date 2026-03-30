@@ -1,26 +1,55 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
+import { api } from '../api/client'
+import { useAuth } from '../context/AuthContext'
 
 interface Props {
   carTitle: string
+  listingId: number
   onClose: () => void
 }
 
-export const BookTestDriveModal = ({ carTitle, onClose }: Props) => {
-  const [name, setName] = useState('')
+export const BookTestDriveModal = ({ carTitle, listingId, onClose }: Props) => {
+  const { user } = useAuth()
+  const [name, setName] = useState(user?.name || '')
   const [phone, setPhone] = useState('')
   const [date, setDate] = useState('')
   const [timeSlot, setTimeSlot] = useState('')
   const [location, setLocation] = useState('home')
   const [submitted, setSubmitted] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState('')
 
   const today = new Date().toISOString().split('T')[0]
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     if (!name || !phone || !date || !timeSlot) return
     if (!/^\+?[\d\s-]{10,15}$/.test(phone.replace(/\s/g, ''))) return
-    setSubmitted(true)
+
+    setSubmitting(true)
+    setError('')
+
+    try {
+      if (user) {
+        // Logged in — send to backend API
+        await api.createBooking({
+          listingId,
+          carTitle,
+          name,
+          phone,
+          preferredDate: date,
+          preferredTime: timeSlot,
+          locationPreference: location,
+        })
+      }
+      // Always show success (guest bookings are client-side only)
+      setSubmitted(true)
+    } catch {
+      setError('Failed to submit booking. Please try again.')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -50,6 +79,16 @@ export const BookTestDriveModal = ({ carTitle, onClose }: Props) => {
               <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
                 for <strong>{carTitle}</strong>
               </p>
+
+              {!user && (
+                <p style={{ fontSize: '0.82rem', color: 'var(--warning)', background: '#FFF3E0', padding: '0.6rem 0.8rem', borderRadius: '8px', marginBottom: '1rem' }}>
+                  Sign in to save your booking and track its status.
+                </p>
+              )}
+
+              {error && (
+                <p style={{ fontSize: '0.85rem', color: 'var(--danger)', marginBottom: '0.75rem' }}>{error}</p>
+              )}
 
               <div className="form-group">
                 <label className="form-label">Full Name *</label>
@@ -95,7 +134,9 @@ export const BookTestDriveModal = ({ carTitle, onClose }: Props) => {
 
             <div className="modal-footer">
               <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
-              <button type="submit" className="btn btn-primary">Confirm Booking</button>
+              <button type="submit" className="btn btn-primary" disabled={submitting}>
+                {submitting ? 'Submitting...' : 'Confirm Booking'}
+              </button>
             </div>
           </form>
         )}

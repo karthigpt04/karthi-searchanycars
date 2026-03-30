@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { Link, Route, Routes, useLocation } from 'react-router-dom'
 import { SiteConfigProvider } from './context/SiteConfigContext'
 import { AuthProvider } from './context/AuthContext'
+import { WishlistProvider } from './context/WishlistContext'
 import { LoginPage } from './pages/LoginPage'
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { ResetPasswordPage } from './pages/ResetPasswordPage'
@@ -24,6 +25,7 @@ import { WishlistPage } from './pages/WishlistPage'
 import { SPlusPage } from './pages/SPlusPage'
 import { SPlusNewPage } from './pages/SPlusNewPage'
 import { SellCarPage } from './pages/SellCarPage'
+import { MyBookingsPage } from './pages/MyBookingsPage'
 
 const ScrollToTop = () => {
   const { pathname } = useLocation()
@@ -49,6 +51,7 @@ function App() {
   return (
     <SiteConfigProvider>
       <AuthProvider>
+      <WishlistProvider>
       <ScrollToTop />
       <SiteHeader />
       <Routes>
@@ -62,6 +65,7 @@ function App() {
         <Route path="/faq" element={<FAQPage />} />
         <Route path="/contact" element={<ContactPage />} />
         <Route path="/wishlist" element={<WishlistPage />} />
+        <Route path="/my-bookings" element={<MyBookingsPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
@@ -75,6 +79,7 @@ function App() {
       </Routes>
       <SiteFooter />
       <MobileNav />
+      </WishlistProvider>
       </AuthProvider>
     </SiteConfigProvider>
   )

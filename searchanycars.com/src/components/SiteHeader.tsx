@@ -45,6 +45,7 @@ export const SiteHeader = () => {
           {user ? (
             <>
               {isAdmin && <Link to="/admin" className="btn btn-ghost btn-sm">Admin</Link>}
+              <Link to="/my-bookings" className="btn btn-ghost btn-sm">My Bookings</Link>
               <Link to="/change-password" className="btn btn-ghost btn-sm">Change Password</Link>
               <button className="btn btn-ghost btn-sm" onClick={logout} type="button">Logout</button>
             </>

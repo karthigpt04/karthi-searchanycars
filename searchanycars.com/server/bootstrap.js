@@ -1451,6 +1451,42 @@ const createTables = () => {
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
     CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_token ON password_reset_tokens(token);
+
+    -- User favorites (wishlist sync between web & mobile)
+    CREATE TABLE IF NOT EXISTS user_favorites (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      listing_id INTEGER NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (listing_id) REFERENCES listings(id) ON DELETE CASCADE,
+      UNIQUE(user_id, listing_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_user_favorites_user ON user_favorites(user_id);
+    CREATE INDEX IF NOT EXISTS idx_user_favorites_listing ON user_favorites(listing_id);
+
+    -- Test drive bookings (synced between web & mobile)
+    CREATE TABLE IF NOT EXISTS test_drive_bookings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      listing_id INTEGER NOT NULL,
+      car_title TEXT NOT NULL DEFAULT '',
+      name TEXT NOT NULL,
+      phone TEXT NOT NULL,
+      email TEXT,
+      preferred_date TEXT,
+      preferred_time TEXT,
+      location_preference TEXT DEFAULT 'hub',
+      notes TEXT,
+      status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'confirmed', 'completed', 'cancelled')),
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (listing_id) REFERENCES listings(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_bookings_user ON test_drive_bookings(user_id);
+    CREATE INDEX IF NOT EXISTS idx_bookings_listing ON test_drive_bookings(listing_id);
+    CREATE INDEX IF NOT EXISTS idx_bookings_status ON test_drive_bookings(status);
   `)
 }
 

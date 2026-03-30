@@ -7,9 +7,10 @@ import { ReserveCarModal } from '../components/ReserveCarModal'
 import type { Listing } from '../types'
 import {
   formatINR, formatINRFull, formatKM, calculateMonthlyPayment,
-  PLACEHOLDER_CAR_IMAGE, WISHLIST_STORAGE_KEY, DEFAULT_LOAN_PERCENT,
+  PLACEHOLDER_CAR_IMAGE, DEFAULT_LOAN_PERCENT,
   DEFAULT_INTEREST_RATE, DEFAULT_TENURE_MONTHS,
 } from '../utils/format'
+import { useWishlist } from '../context/WishlistContext'
 
 export const CarDetailPage = () => {
   const { id } = useParams()
@@ -35,9 +36,7 @@ export const CarDetailPage = () => {
   // Specs accordion
   const [openSpecs, setOpenSpecs] = useState<Record<string, boolean>>({ engine: true })
 
-  const [wishlist, setWishlist] = useState<number[]>(() => {
-    try { return JSON.parse(localStorage.getItem(WISHLIST_STORAGE_KEY) || '[]') } catch { return [] }
-  })
+  const { wishlistIds: wishlist, toggleWishlist: contextToggleWishlist } = useWishlist()
 
   useEffect(() => {
     if (!Number.isFinite(listingId)) {
@@ -54,13 +53,7 @@ export const CarDetailPage = () => {
     return () => { cancelled = true }
   }, [listingId])
 
-  const toggleWishlist = (carId: number) => {
-    setWishlist((prev) => {
-      const next = prev.includes(carId) ? prev.filter((x) => x !== carId) : [...prev, carId]
-      localStorage.setItem(WISHLIST_STORAGE_KEY, JSON.stringify(next))
-      return next
-    })
-  }
+  const toggleWishlist = (carId: number) => contextToggleWishlist(carId)
 
   if (loading) {
     return (
@@ -546,7 +539,7 @@ export const CarDetailPage = () => {
       </div>
 
       {/* Modals */}
-      {showTestDrive && <BookTestDriveModal carTitle={car.title} onClose={() => setShowTestDrive(false)} />}
+      {showTestDrive && <BookTestDriveModal carTitle={car.title} listingId={car.id} onClose={() => setShowTestDrive(false)} />}
       {showReserve && <ReserveCarModal carTitle={car.title} carPrice={car.listing_price_inr} onClose={() => setShowReserve(false)} />}
 
       {/* Fullscreen Gallery */}

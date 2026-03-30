@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api/client'
+import { useWishlist } from '../context/WishlistContext'
 import type { Listing } from '../types'
 import { PriceRangeSlider } from '../components/PriceRangeSlider'
 import {
@@ -53,9 +54,7 @@ export const SPlusPage = () => {
   const [allCars, setAllCars] = useState<Listing[]>([])
   const [loading, setLoading] = useState(true)
   const [displayCount, setDisplayCount] = useState(12)
-  const [wishlist, setWishlist] = useState<number[]>(() => {
-    try { return JSON.parse(localStorage.getItem('sac_wishlist') || '[]') } catch { return [] }
-  })
+  const { wishlistIds: wishlist, toggleWishlist: contextToggleWishlist } = useWishlist()
 
   // Filters
   const [search, setSearch] = useState('')
@@ -159,13 +158,7 @@ export const SPlusPage = () => {
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
   }, [getFilteredCars])
 
-  const toggleWishlist = (id: number) => {
-    setWishlist((prev) => {
-      const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-      localStorage.setItem('sac_wishlist', JSON.stringify(next))
-      return next
-    })
-  }
+  const toggleWishlist = (id: number) => contextToggleWishlist(id)
 
   const toggleQuickTag = (key: string) => {
     setActiveQuickTags((prev) => prev.includes(key) ? prev.filter((t) => t !== key) : [...prev, key])

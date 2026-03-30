@@ -1,12 +1,38 @@
+import type React from 'react'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api/client'
 import type { Listing } from '../types'
 import { formatINR, formatKM, PLACEHOLDER_CAR_IMAGE } from '../utils/format'
 
+interface Booking {
+  id: number
+  listing_id: number
+  car_title: string
+  listing_title?: string
+  brand?: string
+  model?: string
+  listing_price_inr?: number
+  name: string
+  phone: string
+  email?: string
+  preferred_date: string | null
+  preferred_time: string | null
+  location_preference: string
+  notes: string | null
+  status: string
+  created_at: string
+  user_name?: string
+  user_email?: string
+  user_phone?: string
+}
+
 export const AdminPage = () => {
+  const [activeTab, setActiveTab] = useState<'inventory' | 'bookings'>('inventory')
   const [listings, setListings] = useState<Listing[]>([])
+  const [bookings, setBookings] = useState<Booking[]>([])
   const [loading, setLoading] = useState(true)
+  const [bookingsLoading, setBookingsLoading] = useState(false)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null)
@@ -21,6 +47,44 @@ export const AdminPage = () => {
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
   }, [])
+
+  useEffect(() => {
+    if (activeTab !== 'bookings') return
+    let cancelled = false
+    setBookingsLoading(true)
+    api.getAdminBookings()
+      .then((data) => { if (!cancelled) setBookings(data as unknown as Booking[]) })
+      .catch(() => { if (!cancelled) setMessage('Failed to load bookings') })
+      .finally(() => { if (!cancelled) setBookingsLoading(false) })
+    return () => { cancelled = true }
+  }, [activeTab])
+
+  // Track pending status changes per booking (before user clicks Update)
+  const [pendingStatus, setPendingStatus] = useState<Record<number, string>>({})
+  // Track which bookings are currently being saved
+  const [savingIds, setSavingIds] = useState<Set<number>>(new Set())
+  // Track recently saved bookings (show checkmark)
+  const [savedIds, setSavedIds] = useState<Set<number>>(new Set())
+
+  const handleStatusSave = async (bookingId: number) => {
+    const newStatus = pendingStatus[bookingId]
+    if (!newStatus) return
+
+    setSavingIds((prev) => new Set(prev).add(bookingId))
+    try {
+      await api.updateBookingStatus(bookingId, newStatus)
+      setBookings((prev) => prev.map((b) => b.id === bookingId ? { ...b, status: newStatus } : b))
+      setPendingStatus((prev) => { const next = { ...prev }; delete next[bookingId]; return next })
+      setSavedIds((prev) => new Set(prev).add(bookingId))
+      setTimeout(() => setSavedIds((prev) => { const next = new Set(prev); next.delete(bookingId); return next }), 3000)
+      setMessage(`Booking #${bookingId} updated to ${newStatus}`)
+      setTimeout(() => setMessage(''), 3000)
+    } catch {
+      setMessage('Failed to update booking status. Please try again.')
+    } finally {
+      setSavingIds((prev) => { const next = new Set(prev); next.delete(bookingId); return next })
+    }
+  }
 
   const handleDelete = async (id: number) => {
     try {
@@ -68,6 +132,128 @@ export const AdminPage = () => {
         </div>
       </div>
 
+      {/* Tab Switcher */}
+      <div className="container" style={{ display: 'flex', gap: '0.5rem', padding: '1rem 0', marginTop: '0.5rem' }}>
+        <button
+          type="button"
+          className={`btn ${activeTab === 'inventory' ? 'btn-primary' : 'btn-outline'} btn-sm`}
+          onClick={() => setActiveTab('inventory')}
+        >
+          Inventory ({listings.length})
+        </button>
+        <button
+          type="button"
+          className={`btn ${activeTab === 'bookings' ? 'btn-primary' : 'btn-outline'} btn-sm`}
+          onClick={() => setActiveTab('bookings')}
+        >
+          Test Drive Bookings {bookings.length > 0 ? `(${bookings.length})` : ''}
+        </button>
+      </div>
+
+      {activeTab === 'bookings' ? (
+        <div className="container" style={{ paddingBottom: '2rem' }}>
+          <h2 style={{ fontSize: '1.3rem', fontWeight: 700, marginBottom: '1rem' }}>Test Drive Bookings</h2>
+          {bookingsLoading ? (
+            <p style={{ color: 'var(--text-secondary)' }}>Loading bookings...</p>
+          ) : bookings.length === 0 ? (
+            <div className="empty-state"><h3>No bookings yet</h3><p>Bookings will appear here when customers book test drives.</p></div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table className="adm-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr>
+                    <th style={thStyle}>#</th>
+                    <th style={thStyle}>Car</th>
+                    <th style={thStyle}>Customer</th>
+                    <th style={thStyle}>Contact</th>
+                    <th style={thStyle}>Date / Time</th>
+                    <th style={thStyle}>Location</th>
+                    <th style={thStyle}>Status</th>
+                    <th style={thStyle}>Booked</th>
+                    <th style={thStyle}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bookings.map((b) => (
+                    <tr key={b.id} style={{ borderBottom: '1px solid var(--border, rgba(255,255,255,0.06))' }}>
+                      <td style={tdStyle}>{b.id}</td>
+                      <td style={tdStyle}>
+                        <Link to={`/car/${b.listing_id}`} style={{ color: 'var(--gold, #D4A853)', textDecoration: 'none', fontWeight: 600 }}>
+                          {b.car_title || b.listing_title}
+                        </Link>
+                      </td>
+                      <td style={tdStyle}>
+                        <div>{b.user_name || b.name}</div>
+                        {b.user_email && <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{b.user_email}</div>}
+                      </td>
+                      <td style={tdStyle}>{b.phone || b.user_phone}</td>
+                      <td style={tdStyle}>
+                        {b.preferred_date || '—'}<br />
+                        <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>{b.preferred_time || ''}</span>
+                      </td>
+                      <td style={tdStyle}>{b.location_preference === 'home' ? 'Home' : 'Hub'}</td>
+                      <td style={tdStyle}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <select
+                            value={pendingStatus[b.id] ?? b.status}
+                            onChange={(e) => setPendingStatus((prev) => ({ ...prev, [b.id]: e.target.value }))}
+                            style={{
+                              background: '#1E1E2E',
+                              color: '#F0EDE6',
+                              border: `2px solid ${pendingStatus[b.id] && pendingStatus[b.id] !== b.status ? '#D4A853' : '#3A3A4A'}`,
+                              borderRadius: 8,
+                              padding: '6px 10px',
+                              fontSize: '0.85rem',
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                              outline: 'none',
+                            }}
+                          >
+                            <option value="pending">Pending</option>
+                            <option value="confirmed">Confirmed</option>
+                            <option value="completed">Completed</option>
+                            <option value="cancelled">Cancelled</option>
+                          </select>
+                          {pendingStatus[b.id] && pendingStatus[b.id] !== b.status && (
+                            <button
+                              type="button"
+                              onClick={() => handleStatusSave(b.id)}
+                              disabled={savingIds.has(b.id)}
+                              style={{
+                                background: '#D4A853',
+                                color: '#0A0A0F',
+                                border: 'none',
+                                borderRadius: 6,
+                                padding: '4px 10px',
+                                fontSize: '0.78rem',
+                                fontWeight: 700,
+                                cursor: savingIds.has(b.id) ? 'wait' : 'pointer',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {savingIds.has(b.id) ? 'Saving...' : 'Update'}
+                            </button>
+                          )}
+                          {savedIds.has(b.id) && (
+                            <span style={{ color: '#34D399', fontSize: '1rem' }} title="Saved">✓</span>
+                          )}
+                        </div>
+                      </td>
+                      <td style={{ ...tdStyle, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                        {new Date(b.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                      </td>
+                      <td style={tdStyle}>
+                        {b.notes && <span title={b.notes} style={{ cursor: 'help' }}>📝</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      ) : (
+      <>
       {/* Stats Strip */}
       <div className="adm-stats">
         <div className="container">
@@ -246,6 +432,25 @@ export const AdminPage = () => {
           </div>
         )}
       </div>
+      </>
+      )}
     </main>
   )
+}
+
+const thStyle: React.CSSProperties = {
+  textAlign: 'left',
+  padding: '10px 12px',
+  fontSize: '0.78rem',
+  fontWeight: 600,
+  color: 'var(--text-muted)',
+  textTransform: 'uppercase',
+  letterSpacing: '0.5px',
+  borderBottom: '1px solid var(--border, rgba(255,255,255,0.06))',
+}
+
+const tdStyle: React.CSSProperties = {
+  padding: '12px',
+  fontSize: '0.88rem',
+  verticalAlign: 'top',
 }

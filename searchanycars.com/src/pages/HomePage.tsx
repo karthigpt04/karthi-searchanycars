@@ -4,6 +4,7 @@ import { api } from '../api/client'
 import { CarCard } from '../components/CarCard'
 import { TrustBar } from '../components/TrustBar'
 import { useSiteConfig } from '../context/SiteConfigContext'
+import { useWishlist } from '../context/WishlistContext'
 import type { Listing } from '../types'
 // format utilities used by child components
 
@@ -495,9 +496,7 @@ export const HomePage = () => {
   const [showAllBrands, setShowAllBrands] = useState(false)
   const [brandSearch, setBrandSearch] = useState('')
   const [showAllHeroBrands, setShowAllHeroBrands] = useState(false)
-  const [wishlist, setWishlist] = useState<number[]>(() => {
-    try { return JSON.parse(localStorage.getItem('sac_wishlist') || '[]') } catch { return [] }
-  })
+  const { wishlistIds: wishlist, toggleWishlist: contextToggleWishlist } = useWishlist()
 
   useEffect(() => {
     let cancelled = false
@@ -509,13 +508,7 @@ export const HomePage = () => {
     return () => { cancelled = true }
   }, [])
 
-  const toggleWishlist = (id: number) => {
-    setWishlist((prev) => {
-      const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-      localStorage.setItem('sac_wishlist', JSON.stringify(next))
-      return next
-    })
-  }
+  const toggleWishlist = (id: number) => contextToggleWishlist(id)
 
   const toggleCity = (cityName: string) => {
     setSelectedCities((prev) =>
