@@ -1,354 +1,166 @@
-# CLAUDE.md — Step 05: Favorites, Bookings, and Admin APIs
+# CLAUDE.md — CSS Fix: Pixel-Perfect Alignment with v1 Design
 
-## Project context
+## What this is
 
-You are continuing the **SearchAnyCars.com v2** rebuild. Steps 01-04 are complete. The Fastify API has auth, listings CRUD, categories, filters, image upload, site config, and paginated full-text search — all working. The old codebase at `/searchanycars.com/` is READ-ONLY reference.
-
-This is the **final backend step**. After this, the API is complete and we move to the frontend.
+This is NOT a new feature step. This is a **design fidelity audit and fix**. The v2 frontend has all the correct pages and components, but the CSS does not perfectly match the v1 design. Your job is to systematically compare every component and page between v1 and v2, identify every visual difference, and fix them until v2 looks identical to v1.
 
 ---
 
-## Reference: Old implementation
+## Process
 
-Read these sections from the old codebase:
-- `/searchanycars.com/server/index.js` — search for "Favorites (Wishlist)" section (~line 350) and "Test Drive Bookings" section (~line 400). Study the favorite sync logic (bulk merge with PUT /favorites), booking creation with email notification, admin booking management, and the cancel-as-soft-delete pattern.
-- `/searchanycars.com/src/api/client.ts` — check how the frontend calls favorites and bookings endpoints
+### Phase 1: Read the ENTIRE v1 CSS
 
-Key patterns to replicate:
-- **Favorites**: GET user's favorites, POST add, DELETE remove, PUT bulk sync (merge local IDs with server). Return listing IDs only (not full listing objects) for the list endpoint.
-- **Bookings**: GET user's bookings (with listing details joined), POST create (with fire-and-forget email), DELETE cancel (soft delete — sets status to 'cancelled'). Admin: GET all bookings with user info joined, PATCH update status.
-- **Admin booking status**: The old code used GET to avoid CORS issues — we fix this by using PATCH properly since our CORS is correctly configured.
+Read `/searchanycars.com/src/index.css` — all 7000+ lines. This is the single source of truth for how the site should look. Every CSS property, every media query, every hover state, every transition, every shadow, every spacing value matters.
 
----
+### Phase 2: Compare component by component
 
-## What you are building in this step
+For each component/section listed below, do this:
+1. Read the v1 CSS classes from `/searchanycars.com/src/index.css`
+2. Read the v2 CSS from `v2/apps/web/app/globals.css`
+3. Compare EVERY property — colors, padding, margin, font-size, font-weight, border-radius, box-shadow, background, display, gap, grid-template-columns, transitions, hover states, active states
+4. Identify EVERY difference
+5. Fix the v2 CSS to match v1 exactly
 
-### Routes to create:
+### Phase 3: Compare the JSX structure
 
-**Favorites** (prefix `/api/v1/favorites`) — all require auth:
-- GET `/` — get current user's favorite listing IDs (array of numbers)
-- POST `/:listingId` — add a listing to favorites
-- DELETE `/:listingId` — remove a listing from favorites
-- PUT `/` — bulk sync: body `{ ids: number[] }` merges with existing, returns full merged list
-
-**Bookings** (prefix `/api/v1/bookings`) — require auth:
-- GET `/` — get current user's bookings with listing details (title, brand, model, price, images, location)
-- POST `/` — create a booking. Send confirmation email (fire-and-forget). Validate with `createBookingSchema`.
-- DELETE `/:id` — cancel a booking (set status to 'cancelled'). User can only cancel their own unless admin.
-
-**Admin bookings** (prefix `/api/v1/admin/bookings`) — require admin:
-- GET `/` — get ALL bookings with user info (name, email, phone) and listing info joined
-- PATCH `/:id/status` — update booking status. Validate with `updateBookingStatusSchema`. Body: `{ status: 'pending' | 'confirmed' | 'completed' | 'cancelled' }`
+For each component, also compare:
+1. The v1 component JSX (class names used, element nesting, conditional classes)
+2. The v2 component JSX
+3. Ensure v2 uses the SAME class names as v1 where CSS classes are used
+4. If v2 uses Tailwind utilities instead of CSS classes, and the result doesn't match v1, convert to using the CSS class from globals.css instead
 
 ---
 
-## Success criteria
+## Components to audit (in order of visual importance)
 
-1. POST `/api/v1/favorites/1` (as logged-in user) adds listing 1 to favorites, returns 201
-2. GET `/api/v1/favorites` returns `[1]`
-3. DELETE `/api/v1/favorites/1` removes it, returns 200
-4. PUT `/api/v1/favorites` with `{ ids: [1, 2, 3] }` merges and returns the full list
-5. POST `/api/v1/bookings` with valid body creates a booking, returns 201 with booking ID
-6. GET `/api/v1/bookings` returns user's bookings with listing title, brand, images joined
-7. DELETE `/api/v1/bookings/:id` sets status to 'cancelled'
-8. GET `/api/v1/admin/bookings` (admin) returns all bookings with user name/email and listing title
-9. PATCH `/api/v1/admin/bookings/:id/status` with `{ status: "confirmed" }` updates the status
-10. Non-authenticated users get 401 on all endpoints
-11. Non-admin users get 403 on admin endpoints
-12. `cd v2 && pnpm build` passes with zero errors
-13. `/searchanycars.com/` is untouched
+### 1. Site Header
+- v1: `/searchanycars.com/src/components/SiteHeader.tsx` + CSS `.site-header` through `.menu-toggle`
+- v2: `v2/apps/web/src/components/SiteHeader.tsx` + globals.css
+- Check: header height, background, border-bottom, brand icon size/color/radius, brand text font/size/color with coral "Any", nav link padding/font-size/hover/active states, S-Plus gold gradient link, S-Plus New teal gradient link, action buttons styling, wishlist icon, "Find Cars" button, mobile hamburger, mobile overlay nav
 
----
+### 2. Site Footer
+- v1: `/searchanycars.com/src/components/SiteFooter.tsx` + CSS `.site-footer` through `.footer-bottom`
+- v2: `v2/apps/web/src/components/SiteFooter.tsx`
+- Check: background color (navy-dark), padding, footer-grid columns, brand text styling, column title font, link font-size/color/hover, accordion chevron on mobile, footer-bottom border/padding, responsive breakpoints
 
-## File structure
+### 3. Mobile Nav
+- v1: `/searchanycars.com/src/components/MobileNav.tsx` + CSS `.mobile-nav` through `.mobile-nav-icon`
+- v2: `v2/apps/web/src/components/MobileNav.tsx`
+- Check: bottom position, background, height, grid columns, icon sizes, icon-wrap dimensions/border-radius, active state colors (navy for home, coral for search, gold gradient for splus, teal for new, red for wishlist, purple for account), label font-size, display:none on desktop/display:block below 768px
 
-```
-v2/apps/api/src/
-├── routes/
-│   ├── auth.ts              # (step 03 — do not modify)
-│   ├── listings.ts          # (step 04 — do not modify)
-│   ├── categories.ts        # (step 04 — do not modify)
-│   ├── filters.ts           # (step 04 — do not modify)
-│   ├── uploads.ts           # (step 04 — do not modify)
-│   ├── site-config.ts       # (step 04 — do not modify)
-│   ├── favorites.ts         # NEW
-│   ├── bookings.ts          # NEW
-│   └── admin-bookings.ts    # NEW
-└── app.ts                   # MODIFY — register new routes
-```
+### 4. Car Card
+- v1: `/searchanycars.com/src/components/CarCard.tsx` + CSS `.car-card` through `.car-footer`
+- v2: `v2/apps/web/src/components/CarCard.tsx`
+- Check: card border-radius, box-shadow, hover shadow/transform, image height, image object-fit, image hover scale, badge row positioning/colors, wishlist heart button position/size, photo count badge, title font-size/weight/line-clamp, price font-size/color/weight, EMI text, specs row dot separators (size/color/spacing), location pin icon, tag row chips (colors for assured/low-km/new/single-owner), popularity fire icon, footer border-top/padding, status dot colors (green=available, orange=reserved, red=sold), button sizing
 
----
+### 5. Hero Section
+- v1: CSS `.hero`, `.hero-content`, `.hero h1`, `.hero-subtitle`
+- Check: gradient (135deg, navy-dark → navy → navy-light), padding, h1 font-size (clamp), h1 font-weight (800), h1 color white, subtitle font-size/color/opacity
 
-## Detailed specifications
+### 6. Hero Search Widget
+- v1: CSS `.hero-search`, `.search-tabs`, `.search-tab`, `.search-body`, `.search-budget-grid`, `.budget-chip`, `.search-brand-grid`, `.brand-chip`, `.search-city-row`, `.city-multi-select`, `.city-multi-select-trigger`, `.city-multi-dropdown`, `.city-dropdown-item`, `.city-selected-chips`, `.city-selected-chip`
+- Check: search widget background/border-radius/shadow, tab styling/active state, budget chip sizes/colors/active state, brand chip with logo sizing, city dropdown styling, city selected chips
 
-### Favorites route (`v2/apps/api/src/routes/favorites.ts`)
+### 7. Trust Bar
+- v1: CSS `.trust-bar`, `.trust-bar-grid`, `.trust-item`, `.trust-icon`, `.trust-icon-blue`, `.trust-icon-green`, `.trust-icon-orange`
+- Check: background, grid layout, icon circle sizes/colors, text font-size, horizontal scroll on mobile
 
-Register as Fastify plugin with prefix `/api/v1/favorites`. All routes require `requireAuth` preHandler.
+### 8. Section Headings
+- v1: CSS `.section`, `.section-sm`, `.section-gray`, `.section-head`, `.section-head h2`, `.text-link`
+- Check: section padding (4rem vs 2.5rem), gray background color, heading font-size (clamp), heading font-weight (700), "View All" link color/hover
 
-#### GET `/` — Get user's favorites
+### 9. Body Type Grid + Fuel Type Grid
+- v1: CSS `.body-type-grid`, `.body-type-card`, `.fuel-type-grid`, `.fuel-type-card`
+- Check: grid columns, card padding/border/radius/shadow, icon size, name font, count color, hover effects
 
-Query `user_favorites` where `user_id = request.user.id`, ordered by `created_at DESC`. Return array of listing IDs: `[3, 1, 5]`.
+### 10. City Browse Grid
+- v1: CSS `.city-browse-grid`, `.city-browse-card`, `.city-card-image`, `.city-card-overlay`, `.city-card-info`
+- Check: grid columns, card aspect ratio, image cover, overlay gradient, text positioning, hover effects
 
-#### POST `/:listingId` — Add favorite
+### 11. Brand Browse Grid
+- v1: CSS `.brand-browse-grid`, `.brand-browse-card`, `.brand-search-bar`, `.brand-search-input`
+- Check: grid columns, card padding/border, logo image size, brand name font, search bar styling
 
-Parse `listingId` from params (validate as positive integer). Check listing exists (404 if not). Insert into `user_favorites` with `ON CONFLICT DO NOTHING` (idempotent). Return 201 `{ message: "Added to favorites", listingId }`.
+### 12. Featured Tabs
+- v1: CSS `.featured-tabs`, `.featured-tab`
+- Check: tab pill styling, active state (navy background), font-size, padding
 
-#### DELETE `/:listingId` — Remove favorite
+### 13. Budget Pills + S-Plus Banners + S-Plus New Banners
+- v1: CSS `.budget-pills`, `.budget-pill`, `.splus-home-banner`, `.spn-home-banner` and all sub-classes
+- Check: pill sizing/colors, banner gradients, badge styling, feature icons, button styling
 
-Delete from `user_favorites` where user_id and listing_id match. Return 200 `{ message: "Removed from favorites", listingId }`.
+### 14. How It Works + Reviews + Sell CTA
+- v1: CSS `.how-it-works-grid`, `.how-step`, `.reviews-grid`, `.review-card`, `.sell-cta-section`
+- Check: step numbering, icon circles, review stars color, avatar circle, CTA layout
 
-#### PUT `/` — Bulk sync favorites
+### 15. Filter Sidebar (Search Page)
+- v1: CSS `.search-layout`, `.filter-panel`, `.filter-section`, `.filter-section-title`, `.filter-chips`, `.filter-chip`, `.filter-input`, `.filter-range`, `.filter-header`, `.results-bar`, `.sort-pills`, `.sort-pill`, `.active-filter-pill`, `.quick-tags`, `.quick-tag`, `.compare-banner`, `.mobile-filter-fab`, `.filter-panel-backdrop`, `.filter-panel-open`
+- Check: sidebar width (280px), section spacing, chip sizes/colors/active states, input styling, results bar layout, sort pill active state, mobile drawer animation
 
-Body: `{ ids: number[] }` (validate with Zod — array of positive integers).
+### 16. Car Detail Page (VDP)
+- v1: CSS `.vdp-layout`, `.vdp-sidebar`, `.gallery`, `.gallery-main`, `.gallery-nav-btn`, `.gallery-thumbs`, `.quick-specs`, `.overview-grid`, `.specs-section`, `.features-section`, `.inspection-section`, `.emi-calculator`, `.warranty-section`, `.mobile-cta-bar`, `.fullscreen-gallery`
+- Check: two-column layout widths, sidebar sticky behavior, gallery aspect ratio, thumbnail strip, nav arrow styling, quick spec strip, overview grid columns, specs accordion, EMI slider styling, warranty card layout, mobile sticky CTA
 
-This is the sync endpoint used by the mobile app. It merges the provided IDs with existing server-side favorites. Logic:
-1. Insert each ID with `ON CONFLICT DO NOTHING` (won't duplicate)
-2. Query the full merged list
-3. Return the complete array of listing IDs
+### 17. Modals
+- v1: CSS `.modal-overlay`, `.modal`, `.modal-header`, `.modal-close`, `.modal-body`, `.modal-footer`, `.form-group`, `.form-label`, `.form-input`, `.form-select`, `.form-row`, `.form-success`
+- Check: overlay background, modal width/max-width/border-radius, header padding/border, close button, form field styling, success state icon
 
-This does NOT delete server-side favorites that aren't in the provided list — it's a merge, not a replace. This matches the old behavior.
+### 18. Login Page
+- v1: CSS `.login-page`, `.login-card`, `.login-header`, `.login-tabs`, `.login-tab`, `.login-error`, `.login-form`, `.login-field`, `.login-submit`
+- Check: centered card width, background, padding, tab active state, input styling, submit button
 
-### Bookings route (`v2/apps/api/src/routes/bookings.ts`)
+### 19. S-Plus Page Theme
+- v1: CSS for `.splus-page`, `.splus-hero`, all `.sp-*` themed classes
+- Check: gold color scheme, dark backgrounds, card styling variants, badge styling
 
-Register with prefix `/api/v1/bookings`. All routes require `requireAuth`.
+### 20. S-Plus New Page Theme
+- v1: CSS for `.spn-page`, `.spn-hero`, all `.spn-*` themed classes
+- Check: teal color scheme, dark backgrounds, card styling variants
 
-#### GET `/` — Get user's bookings
+### 21. Buttons (Global)
+- v1: CSS `.btn`, `.btn-primary`, `.btn-secondary`, `.btn-outline`, `.btn-ghost`, `.btn-whatsapp`, `.btn-sm`, `.btn-lg`, `.btn-outline-white`
+- Check: border-radius (999px for pills), padding, font-weight, font-size, colors, hover states, shadows, transitions
 
-Join `test_drive_bookings` with `listings` to include listing details. Return:
-```json
-[
-  {
-    "id": 1,
-    "listingId": 3,
-    "carTitle": "2022 Hyundai Creta SX(O)",
-    "name": "Karthi",
-    "phone": "+91 9876543210",
-    "email": "karthi@example.com",
-    "preferredDate": "2026-04-15",
-    "preferredTime": "10:00 AM",
-    "locationPreference": "hub",
-    "notes": null,
-    "status": "pending",
-    "createdAt": "2026-04-01T...",
-    "listing": {
-      "title": "2022 Hyundai Creta SX(O)",
-      "brand": "Hyundai",
-      "model": "Creta",
-      "listingPriceInr": 1450000,
-      "images": ["..."],
-      "locationCity": "New Delhi"
-    }
-  }
-]
-```
-
-Order by `created_at DESC`.
-
-#### POST `/` — Create booking
-
-Validate with `createBookingSchema` from `@searchanycars/shared`. Required: `listingId`, `name`, `phone`. Optional: `carTitle`, `email`, `preferredDate`, `preferredTime`, `locationPreference`, `notes`.
-
-1. Check listing exists (404 if not)
-2. Sanitize text inputs (strip HTML from name, phone, notes)
-3. Insert into `test_drive_bookings`
-4. Send confirmation email (fire-and-forget — catch and log errors, don't fail the request):
-   - Look up user's email from the users table
-   - If email exists and email service is configured, call `sendBookingConfirmationEmail`
-5. Return 201 `{ id: booking.id, message: "Booking created successfully" }`
-
-#### DELETE `/:id` — Cancel booking
-
-1. Find the booking by ID
-2. If not found → 404
-3. If `booking.user_id !== request.user.id` AND `request.user.role !== 'admin'` → 403
-4. Update status to 'cancelled' and set `updated_at`
-5. Return 200 `{ message: "Booking cancelled" }`
-
-### Admin bookings route (`v2/apps/api/src/routes/admin-bookings.ts`)
-
-Register with prefix `/api/v1/admin/bookings`. All routes require `requireAdmin`.
-
-#### GET `/` — Get all bookings
-
-Join `test_drive_bookings` with `listings` AND `users` to include both listing and user info:
-```json
-[
-  {
-    "id": 1,
-    "listingId": 3,
-    "carTitle": "...",
-    "name": "Karthi",
-    "phone": "+91 9876543210",
-    "status": "pending",
-    "createdAt": "...",
-    "listingTitle": "2022 Hyundai Creta SX(O)",
-    "listingBrand": "Hyundai",
-    "listingModel": "Creta",
-    "listingPriceInr": 1450000,
-    "userName": "Karthi",
-    "userEmail": "karthi@example.com",
-    "userPhone": "+91 9876543210"
-  }
-]
-```
-
-Order by `created_at DESC`.
-
-#### PATCH `/:id/status` — Update booking status
-
-Validate body with `updateBookingStatusSchema`: `{ status: 'pending' | 'confirmed' | 'completed' | 'cancelled' }`.
-
-1. Find booking (404 if not found)
-2. Update status and `updated_at`
-3. Return 200 `{ message: "Booking status updated", id, status }`
-
-### Update `v2/apps/api/src/app.ts`
-
-Register the 3 new route plugins:
-```typescript
-import { favoriteRoutes } from './routes/favorites.js';
-import { bookingRoutes } from './routes/bookings.js';
-import { adminBookingRoutes } from './routes/admin-bookings.js';
-
-// In createApp():
-await app.register(favoriteRoutes, { prefix: '/api/v1/favorites' });
-await app.register(bookingRoutes, { prefix: '/api/v1/bookings' });
-await app.register(adminBookingRoutes, { prefix: '/api/v1/admin/bookings' });
-```
+### 22. Responsive Breakpoints
+- v1 uses these breakpoints: 1200px, 1024px, 900px, 768px, 600px, 480px, 400px, 360px
+- For EACH component, check the responsive rules match v1
 
 ---
 
-## Verification steps
+## How to fix
 
-```bash
-cd v2
-pnpm install
-cd apps/api && pnpm dev
+For each difference found:
+1. If the v2 globals.css is missing a CSS class entirely — copy it from v1's index.css
+2. If the v2 globals.css has the class but with wrong values — update the values to match v1 exactly
+3. If the v2 component uses Tailwind utilities that don't match — replace with the CSS class from globals.css
+4. If the v2 component uses different class names — update to match v1 class names
 
-# Login as regular user (use the test user from step 03, or register a new one)
-curl -s -X POST http://localhost:4000/api/v1/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"email":"buyer@test.com","password":"test123","name":"Car Buyer"}' \
-  -c user-cookies.txt
+**The simplest and most reliable approach**: Take the ENTIRE v1 index.css content, and ensure every single rule exists in v2's globals.css. If a rule is missing, add it. If it conflicts with Tailwind, the CSS class should take precedence (add `!important` if needed, or ensure specificity is correct).
 
-# Login as admin
-curl -s -X POST http://localhost:4000/api/v1/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"admin@searchanycars.com","password":"admin123"}' \
-  -c admin-cookies.txt
+---
 
-# === FAVORITES ===
+## Verification
 
-# Add favorite
-curl -s -X POST http://localhost:4000/api/v1/favorites/1 -b user-cookies.txt
-# → 201
-
-# Add another
-curl -s -X POST http://localhost:4000/api/v1/favorites/3 -b user-cookies.txt
-
-# List favorites
-curl -s http://localhost:4000/api/v1/favorites -b user-cookies.txt
-# → [3, 1] or [1, 3]
-
-# Bulk sync
-curl -s -X PUT http://localhost:4000/api/v1/favorites \
-  -H "Content-Type: application/json" \
-  -b user-cookies.txt \
-  -d '{"ids": [1, 2, 5]}'
-# → merged list including 1, 2, 3, 5
-
-# Remove favorite
-curl -s -X DELETE http://localhost:4000/api/v1/favorites/3 -b user-cookies.txt
-
-# === BOOKINGS ===
-
-# Create booking
-curl -s -X POST http://localhost:4000/api/v1/bookings \
-  -H "Content-Type: application/json" \
-  -b user-cookies.txt \
-  -d '{"listingId":1,"name":"Car Buyer","phone":"+91 9876543210","preferredDate":"2026-04-15","preferredTime":"10:00 AM"}'
-# → 201 { id: 1, message: "Booking created successfully" }
-
-# List my bookings
-curl -s http://localhost:4000/api/v1/bookings -b user-cookies.txt
-# → array with booking + listing details
-
-# Cancel booking
-curl -s -X DELETE http://localhost:4000/api/v1/bookings/1 -b user-cookies.txt
-# → { message: "Booking cancelled" }
-
-# === ADMIN BOOKINGS ===
-
-# Create another booking first (as the user)
-curl -s -X POST http://localhost:4000/api/v1/bookings \
-  -H "Content-Type: application/json" \
-  -b user-cookies.txt \
-  -d '{"listingId":2,"name":"Car Buyer","phone":"+91 9876543210"}'
-
-# Admin: list all bookings
-curl -s http://localhost:4000/api/v1/admin/bookings -b admin-cookies.txt
-# → all bookings with user info
-
-# Admin: update booking status
-curl -s -X PATCH http://localhost:4000/api/v1/admin/bookings/2/status \
-  -H "Content-Type: application/json" \
-  -b admin-cookies.txt \
-  -d '{"status":"confirmed"}'
-# → { message: "Booking status updated", id: 2, status: "confirmed" }
-
-# === AUTH CHECKS ===
-
-# Unauthenticated → 401
-curl -s http://localhost:4000/api/v1/favorites
-# → 401
-
-# Non-admin → 403 on admin route
-curl -s http://localhost:4000/api/v1/admin/bookings -b user-cookies.txt
-# → 403
-
-# Full build
-cd ../..
-pnpm build
-```
+After all fixes:
+1. Open v2 at localhost:3000
+2. For each page, visually inspect at desktop width (1280px+), tablet (768px), and mobile (375px)
+3. The following must match v1 exactly:
+   - Colors (navy #1A237E, coral #FF6B35, backgrounds, text colors)
+   - Font sizes and weights (Inter body, Poppins headings)
+   - Spacing (padding, margins, gaps)
+   - Border radius (6px, 10px, 16px, 24px, 999px for pills)
+   - Shadows (the exact shadow values from v1)
+   - Hover/active states and transitions
+   - Grid layouts and column counts at each breakpoint
+   - Mobile-specific layouts (stacked grids, hidden elements, drawer behaviors)
+4. `pnpm build` — zero errors
 
 ---
 
 ## What NOT to do
 
+- Do NOT "improve" or "modernize" any design — match v1 exactly
+- Do NOT remove CSS classes thinking they're unused — they might be used in components
+- Do NOT change v1's class naming convention
 - Do NOT modify `/searchanycars.com/`
-- Do NOT modify any routes from steps 03-04
-- Do NOT modify `apps/web/` (frontend starts in step 06)
-- Do NOT add WebSocket/SSE for real-time updates — keep it simple with REST
-- Do NOT over-engineer the booking system — no calendar integration, no payment, just the CRUD
-
----
-
-## API completion summary
-
-After this step, the complete API has these endpoint groups:
-
-| Prefix | Endpoints | Auth |
-|--------|-----------|------|
-| `/api/health` | 1 | Public |
-| `/api/v1/auth/*` | 12 | Mixed |
-| `/api/v1/listings/*` | 5 | Public read, Admin write |
-| `/api/v1/categories/*` | 4 + 2 filter mapping | Public read, Admin write |
-| `/api/v1/filters/*` | 1 | Public |
-| `/api/v1/uploads/*` | 1 | Admin |
-| `/api/v1/site-config/*` | 3 | Public read, Admin write |
-| `/api/v1/favorites/*` | 4 | Auth required |
-| `/api/v1/bookings/*` | 3 | Auth required |
-| `/api/v1/admin/bookings/*` | 2 | Admin required |
-| **Total** | **~37 endpoints** | |
-
-This is the complete backend. Steps 06-10 are all frontend + deployment.
-
----
-
-## Notes for next step
-
-Step 06 (`06-nextjs-layout-homepage.md`) will:
-- Build the Next.js layout (header, footer, navigation) matching the v1 design
-- Build the SSR homepage (hero, search widget, budget brackets, brands, featured cars, trust bar)
-- Connect to the API using server components + TanStack Query
-- All styled with Tailwind matching the Navy + Coral design system
+- Do NOT add new features or pages
