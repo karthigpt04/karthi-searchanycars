@@ -55,7 +55,8 @@
       "Bash(pnpm build:*)",
       "Bash(pnpm lint:*)",
       "Bash(pnpm db:generate)",
-      "Bash(pnpm:*)"
+      "Bash(pnpm:*)",
+      "Bash(/home/tw10520/searchanycars/v2/apps/api/.env:*)"
     ]
   }
 }

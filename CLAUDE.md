@@ -1,352 +1,343 @@
-# CLAUDE.md — Step 02: Database Schema + Shared Types
+# CLAUDE.md — Step 03: Fastify API Core + Authentication
 
 ## Project context
 
-You are continuing the **SearchAnyCars.com v2** rebuild. Step 01 (monorepo scaffold) is complete. The v2 code lives in `/v2/`. The old v1 code at `/searchanycars.com/` is READ-ONLY reference.
+You are continuing the **SearchAnyCars.com v2** rebuild. Steps 01 (monorepo) and 02 (database schema) are complete. The Drizzle schema and Zod schemas are ready in `v2/packages/db` and `v2/packages/shared`. The old codebase at `/searchanycars.com/` is READ-ONLY reference.
 
-This step sets up the database layer: Drizzle ORM schema for PostgreSQL, Zod validation schemas for shared types, and seed data for development.
+This step builds the **Fastify API server core** and the **complete auth system**. After this step, you will have a running API with user registration, login, token refresh, logout, password reset, and admin user management — all validated with Zod schemas.
 
 ---
 
-## Reference: Old database schema
+## Reference: Old auth implementation
 
-Read `/searchanycars.com/server/bootstrap.js` — it contains all the SQLite CREATE TABLE statements. The old schema has 10 tables, but the listings table has 193 columns. **Do NOT port all 193 columns.** The API only uses ~45 columns (check `listingUpsertColumns` in `/searchanycars.com/server/index.js`). Port only the columns that are actually used + a `specs_json` JSONB field for future extensibility.
+Read these files from the old codebase to understand the auth patterns to replicate:
+- `/searchanycars.com/server/routes/auth.js` — all auth endpoints (register, login, refresh, logout, forgot/reset password, change password, admin CRUD users)
+- `/searchanycars.com/server/services/authService.js` — JWT generation, bcrypt hashing, cookie management
+- `/searchanycars.com/server/services/sessionService.js` — session CRUD in database
+- `/searchanycars.com/server/services/emailService.js` — password reset + booking confirmation emails via nodemailer
+- `/searchanycars.com/server/middleware/auth.js` — extractUser, requireAuth, requireAdmin middleware
+- `/searchanycars.com/server/middleware/security.js` — CORS, rate limiting, helmet config
+- `/searchanycars.com/server/config.js` — all configuration values and env vars
 
-Also read `/searchanycars.com/src/config/defaults.ts` for seed data (categories, filter definitions, budget brackets, brands, cities, sample listings).
+Replicate the same functionality but with these improvements:
+1. **Dual auth**: cookie for web + Bearer token header for mobile (the old code only used cookies)
+2. **Zod validation**: use schemas from `@searchanycars/shared` for all request bodies
+3. **Fastify plugins**: each feature is a Fastify plugin, not Express middleware
+4. **Type safety**: full TypeScript, no `any` types
 
 ---
 
 ## What you are building in this step
 
-1. **Drizzle ORM schema** in `v2/packages/db/` — 9 PostgreSQL tables
-2. **Zod validation schemas** in `v2/packages/shared/` — request/response validation for every entity
-3. **TypeScript types** — inferred from Zod schemas (single source of truth)
-4. **Database connection** — PostgreSQL via `postgres` driver with Drizzle
-5. **Migration tooling** — Drizzle Kit for generating and running migrations
-6. **Seed script** — populates development database with categories, filters, and 10 sample car listings
+All changes go in `v2/apps/api/`. The packages/db and packages/shared from step 02 are consumed via workspace imports.
+
+### API features:
+1. **Server core**: Fastify with structured plugin registration, error handling, request logging
+2. **Auth middleware**: extract user from cookie OR Bearer header, requireAuth, requireAdmin decorators
+3. **Auth routes** (all under `/api/v1/auth/`):
+   - POST `/register` — create user, issue tokens
+   - POST `/login` — verify credentials, issue tokens
+   - POST `/refresh` — rotate refresh token
+   - POST `/logout` — clear tokens and session
+   - GET `/me` — get current user profile
+   - POST `/forgot-password` — send reset email
+   - POST `/reset-password` — validate token, set new password
+   - POST `/change-password` — logged-in password change
+   - GET `/users` — admin: list all users
+   - POST `/users` — admin: create user
+   - PUT `/users/:id` — admin: update user
+   - DELETE `/users/:id` — admin: delete user
+4. **Email service**: nodemailer for password reset and booking confirmation emails
+5. **Rate limiting**: strict on auth endpoints (20 req/15min in production), relaxed global (200 req/15min)
+6. **CORS**: strict origin whitelist from env var
 
 ---
 
 ## Success criteria
 
-1. `cd v2/packages/db && pnpm db:generate` creates migration SQL files without errors
-2. `cd v2/packages/db && pnpm db:push` applies schema to a local or cloud PostgreSQL database
-3. `cd v2/packages/db && pnpm db:seed` populates the database with seed data
-4. `cd v2 && pnpm build` still passes with zero errors
-5. Importing `@searchanycars/shared` from `apps/api` gives access to all Zod schemas and inferred types
-6. Importing `@searchanycars/db` from `apps/api` gives access to the Drizzle client and table schemas
-7. `/searchanycars.com/` folder remains untouched
+1. The API starts with `cd v2/apps/api && pnpm dev` on port 4000
+2. POST `/api/v1/auth/register` with `{ email, password, name }` creates a user and returns user object + sets httpOnly cookies
+3. POST `/api/v1/auth/login` with `{ email, password }` returns user + sets cookies
+4. GET `/api/v1/auth/me` with cookie OR `Authorization: Bearer <token>` returns the user
+5. POST `/api/v1/auth/refresh` rotates tokens correctly
+6. POST `/api/v1/auth/logout` clears cookies and session
+7. POST `/api/v1/auth/forgot-password` generates a reset token in the database (email sending can be fire-and-forget with error logging if SMTP is not configured)
+8. POST `/api/v1/auth/change-password` works for logged-in users
+9. Admin routes (GET/POST/PUT/DELETE `/api/v1/auth/users`) are protected by admin role check
+10. Invalid request bodies are rejected with Zod validation errors (400 status)
+11. `cd v2 && pnpm build` passes with zero errors
+12. `/searchanycars.com/` is untouched
 
 ---
 
-## Database: PostgreSQL tables (9 tables)
+## File structure to create
 
-### Table 1: `categories`
-
-| Column | Type | Constraints |
-|--------|------|------------|
-| id | serial | PRIMARY KEY |
-| name | varchar(100) | NOT NULL, UNIQUE |
-| slug | varchar(100) | NOT NULL, UNIQUE |
-| vehicle_type | varchar(100) | NOT NULL |
-| description | text | DEFAULT '' |
-| created_at | timestamp | NOT NULL, DEFAULT now() |
-| updated_at | timestamp | NOT NULL, DEFAULT now() |
-
-### Table 2: `filter_definitions`
-
-| Column | Type | Constraints |
-|--------|------|------------|
-| id | serial | PRIMARY KEY |
-| key | varchar(100) | NOT NULL, UNIQUE |
-| label | varchar(100) | NOT NULL |
-| type | varchar(20) | NOT NULL (text/number/select) |
-| options | jsonb | NOT NULL, DEFAULT '[]' |
-
-### Table 3: `category_filter_map`
-
-| Column | Type | Constraints |
-|--------|------|------------|
-| category_id | integer | NOT NULL, FK → categories(id) ON DELETE CASCADE |
-| filter_id | integer | NOT NULL, FK → filter_definitions(id) ON DELETE CASCADE |
-| PRIMARY KEY | (category_id, filter_id) | composite |
-
-### Table 4: `listings`
-
-This is the core table. Port ONLY the columns that the API actually uses (from `listingUpsertColumns` in the old `server/index.js`) plus essential metadata columns. Use a `specs` JSONB column for all the 150+ feature flags (airbags, sunroof, etc.) instead of individual boolean columns.
-
-| Column | Type | Constraints |
-|--------|------|------------|
-| id | serial | PRIMARY KEY |
-| category_id | integer | FK → categories(id) ON DELETE SET NULL |
-| listing_code | varchar(50) | NOT NULL, UNIQUE |
-| title | varchar(300) | NOT NULL |
-| brand | varchar(100) | NOT NULL |
-| model | varchar(100) | NOT NULL |
-| variant | varchar(200) | DEFAULT '' |
-| model_year | integer | |
-| registration_year | integer | |
-| vehicle_type | varchar(50) | |
-| body_style | varchar(50) | |
-| exterior_color | varchar(50) | |
-| interior_color | varchar(50) | |
-| listing_price_inr | integer | NOT NULL, DEFAULT 0 |
-| negotiable | boolean | NOT NULL, DEFAULT false |
-| estimated_market_value_inr | integer | |
-| ownership_type | varchar(20) | (First/Second/Third/Fourth+) |
-| seller_type | varchar(30) | (Dealer/Individual/Certified Dealer) |
-| registration_state | varchar(100) | |
-| registration_city | varchar(100) | |
-| total_km_driven | integer | |
-| mileage_kmpl | real | |
-| engine_type | varchar(100) | |
-| engine_capacity_cc | integer | |
-| power_bhp | integer | |
-| transmission_type | varchar(20) | (Manual/Automatic/CVT/DCT/AMT) |
-| fuel_type | varchar(20) | (Petrol/Diesel/Electric/Hybrid/CNG/LPG) |
-| battery_capacity_kwh | real | |
-| overall_condition_rating | real | |
-| service_history_available | boolean | DEFAULT false |
-| airbags_count | integer | |
-| infotainment_screen_size | varchar(20) | |
-| location_city | varchar(100) | |
-| location_state | varchar(100) | |
-| dealer_rating | real | |
-| inspection_status | varchar(30) | |
-| inspection_score | real | |
-| listing_status | varchar(20) | NOT NULL, DEFAULT 'Active' |
-| featured_listing | boolean | NOT NULL, DEFAULT false |
-| is_splus | boolean | NOT NULL, DEFAULT false |
-| is_new_car | boolean | NOT NULL, DEFAULT false |
-| new_car_type | varchar(30) | |
-| views_count | integer | DEFAULT 0 |
-| favorites_count | integer | DEFAULT 0 |
-| lead_count | integer | DEFAULT 0 |
-| promotion_tier | varchar(20) | |
-| images | jsonb | NOT NULL, DEFAULT '[]' |
-| interior_images | jsonb | NOT NULL, DEFAULT '[]' |
-| exterior_images | jsonb | NOT NULL, DEFAULT '[]' |
-| engine_images | jsonb | NOT NULL, DEFAULT '[]' |
-| tire_images | jsonb | NOT NULL, DEFAULT '[]' |
-| damage_images | jsonb | NOT NULL, DEFAULT '[]' |
-| additional_notes | text | |
-| specs | jsonb | NOT NULL, DEFAULT '{}' |
-| created_at | timestamp | NOT NULL, DEFAULT now() |
-| updated_at | timestamp | NOT NULL, DEFAULT now() |
-
-**Indexes on listings:**
-- `idx_listings_brand` on (brand)
-- `idx_listings_location_city` on (location_city)
-- `idx_listings_listing_status` on (listing_status)
-- `idx_listings_price` on (listing_price_inr)
-- `idx_listings_category` on (category_id)
-- `idx_listings_featured` on (featured_listing) WHERE featured_listing = true
-- `idx_listings_splus` on (is_splus) WHERE is_splus = true
-
-**Full-text search index** (PostgreSQL-specific):
-Create a generated tsvector column or a GIN index on `to_tsvector('english', title || ' ' || brand || ' ' || model || ' ' || coalesce(location_city, ''))` for fast search.
-
-### Table 5: `users`
-
-| Column | Type | Constraints |
-|--------|------|------------|
-| id | serial | PRIMARY KEY |
-| email | varchar(255) | UNIQUE |
-| phone | varchar(20) | UNIQUE |
-| name | varchar(200) | NOT NULL, DEFAULT '' |
-| password_hash | text | |
-| role | varchar(10) | NOT NULL, DEFAULT 'user', CHECK (admin/user) |
-| google_id | varchar(255) | UNIQUE |
-| phone_verified | boolean | NOT NULL, DEFAULT false |
-| email_verified | boolean | NOT NULL, DEFAULT false |
-| avatar_url | text | |
-| created_at | timestamp | NOT NULL, DEFAULT now() |
-| updated_at | timestamp | NOT NULL, DEFAULT now() |
-
-### Table 6: `sessions`
-
-| Column | Type | Constraints |
-|--------|------|------------|
-| id | serial | PRIMARY KEY |
-| user_id | integer | NOT NULL, FK → users(id) ON DELETE CASCADE |
-| refresh_token | text | NOT NULL, UNIQUE |
-| expires_at | timestamp | NOT NULL |
-| ip_address | varchar(45) | |
-| user_agent | text | |
-| created_at | timestamp | NOT NULL, DEFAULT now() |
-
-### Table 7: `password_reset_tokens`
-
-| Column | Type | Constraints |
-|--------|------|------------|
-| id | serial | PRIMARY KEY |
-| user_id | integer | NOT NULL, FK → users(id) ON DELETE CASCADE |
-| token | text | NOT NULL, UNIQUE |
-| expires_at | timestamp | NOT NULL |
-| used | boolean | NOT NULL, DEFAULT false |
-| created_at | timestamp | NOT NULL, DEFAULT now() |
-
-### Table 8: `user_favorites`
-
-| Column | Type | Constraints |
-|--------|------|------------|
-| id | serial | PRIMARY KEY |
-| user_id | integer | NOT NULL, FK → users(id) ON DELETE CASCADE |
-| listing_id | integer | NOT NULL, FK → listings(id) ON DELETE CASCADE |
-| created_at | timestamp | NOT NULL, DEFAULT now() |
-| UNIQUE | (user_id, listing_id) | |
-
-### Table 9: `test_drive_bookings`
-
-| Column | Type | Constraints |
-|--------|------|------------|
-| id | serial | PRIMARY KEY |
-| user_id | integer | NOT NULL, FK → users(id) ON DELETE CASCADE |
-| listing_id | integer | NOT NULL, FK → listings(id) ON DELETE CASCADE |
-| car_title | varchar(300) | NOT NULL, DEFAULT '' |
-| name | varchar(200) | NOT NULL |
-| phone | varchar(20) | NOT NULL |
-| email | varchar(255) | |
-| preferred_date | varchar(20) | |
-| preferred_time | varchar(20) | |
-| location_preference | varchar(20) | DEFAULT 'hub' |
-| notes | text | |
-| status | varchar(20) | NOT NULL, DEFAULT 'pending', CHECK (pending/confirmed/completed/cancelled) |
-| created_at | timestamp | NOT NULL, DEFAULT now() |
-| updated_at | timestamp | NOT NULL, DEFAULT now() |
-
-### Site config table (Table 10):
-
-| Column | Type | Constraints |
-|--------|------|------------|
-| key | varchar(100) | PRIMARY KEY |
-| value | jsonb | NOT NULL, DEFAULT '{}' |
-| updated_at | timestamp | NOT NULL, DEFAULT now() |
+```
+v2/apps/api/src/
+├── index.ts                    # Entry point (already exists from step 01)
+├── app.ts                      # App factory (MODIFY — register all plugins)
+├── config.ts                   # Config (MODIFY — add auth/db/email env vars)
+├── plugins/
+│   ├── health.ts               # Health check (already exists)
+│   ├── auth.ts                 # Auth middleware plugin (extractUser, requireAuth, requireAdmin)
+│   └── rate-limit.ts           # Rate limiting config
+├── routes/
+│   └── auth.ts                 # All auth route handlers
+├── services/
+│   ├── auth.service.ts         # JWT generation, bcrypt, cookie management
+│   ├── session.service.ts      # Session CRUD using Drizzle
+│   └── email.service.ts        # Nodemailer for password reset + booking emails
+└── lib/
+    └── errors.ts               # Typed error classes (AppError, etc.)
+```
 
 ---
 
-## Files to create / modify
+## Detailed specifications
 
-### `v2/packages/db/src/schema.ts`
+### `v2/apps/api/src/config.ts` — MODIFY existing file
 
-Define all 10 tables using Drizzle's `pgTable` function. Use proper PostgreSQL types (serial, varchar, integer, boolean, jsonb, timestamp). Define all indexes. Define all foreign key relations using Drizzle's `relations()`.
-
-### `v2/packages/db/src/index.ts`
-
-Export the Drizzle client instance and all table schemas. The client should use `postgres` (the `postgres` npm package, NOT `pg`) as the driver. Connection URL comes from `DATABASE_URL` env var.
+Add all required env vars. In development, provide defaults for non-secret values only. In production, all secrets MUST be env vars.
 
 ```typescript
-import { drizzle } from 'drizzle-orm/postgres-js';
-import postgres from 'postgres';
-import * as schema from './schema.js';
+import 'dotenv/config';
 
-const connectionString = process.env.DATABASE_URL;
-if (!connectionString) throw new Error('DATABASE_URL is required');
+export const config = {
+  // Server
+  port: Number(process.env.PORT || 4000),
+  nodeEnv: process.env.NODE_ENV || 'development',
+  isDev: (process.env.NODE_ENV || 'development') !== 'production',
+  logLevel: process.env.LOG_LEVEL || 'info',
 
-const client = postgres(connectionString);
-export const db = drizzle(client, { schema });
-export * from './schema.js';
+  // CORS
+  corsOrigins: (process.env.CORS_ORIGINS || 'http://localhost:3000')
+    .split(',').map(s => s.trim()).filter(Boolean),
+
+  // JWT
+  jwtAccessSecret: process.env.JWT_ACCESS_SECRET || 'dev-access-secret-change-in-production-min32chars!',
+  jwtRefreshSecret: process.env.JWT_REFRESH_SECRET || 'dev-refresh-secret-change-in-production-min32chars!',
+  jwtAccessExpiry: process.env.JWT_ACCESS_EXPIRY || '15m',
+  jwtRefreshExpiry: process.env.JWT_REFRESH_EXPIRY || '7d',
+
+  // Database
+  databaseUrl: process.env.DATABASE_URL || '',
+
+  // Cookies
+  cookieSecure: process.env.COOKIE_SECURE === 'true',
+  cookieDomain: process.env.COOKIE_DOMAIN || undefined,
+
+  // Email (SMTP)
+  smtpHost: process.env.SMTP_HOST || 'smtp.gmail.com',
+  smtpPort: Number(process.env.SMTP_PORT || 587),
+  smtpUser: process.env.SMTP_USER || '',
+  smtpPass: process.env.SMTP_PASS || '',
+  companyEmail: process.env.COMPANY_EMAIL || 'hello@searchanycars.com',
+  companyName: process.env.COMPANY_NAME || 'SearchAnyCars',
+  frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
+
+  // Rate limiting
+  rateLimitWindowMs: Number(process.env.RATE_LIMIT_WINDOW_MS || 900000),
+  rateLimitMax: Number(process.env.RATE_LIMIT_MAX || ((process.env.NODE_ENV || 'development') !== 'production' ? 1000 : 200)),
+} as const;
 ```
 
-### `v2/packages/db/drizzle.config.ts`
+### `v2/apps/api/.env.example` — UPDATE
 
+```bash
+PORT=4000
+NODE_ENV=development
+LOG_LEVEL=info
+CORS_ORIGINS=http://localhost:3000
+
+# Database (Neon PostgreSQL)
+DATABASE_URL=postgresql://user:pass@host/db?sslmode=require
+
+# JWT secrets (generate random strings for production)
+JWT_ACCESS_SECRET=dev-access-secret-change-in-production-min32chars!
+JWT_REFRESH_SECRET=dev-refresh-secret-change-in-production-min32chars!
+
+# Cookies
+COOKIE_SECURE=false
+# COOKIE_DOMAIN=
+
+# Email (optional — auth works without it, password reset emails just won't send)
+# SMTP_HOST=smtp.gmail.com
+# SMTP_PORT=587
+# SMTP_USER=your-email@gmail.com
+# SMTP_PASS=your-app-password
+COMPANY_EMAIL=hello@searchanycars.com
+COMPANY_NAME=SearchAnyCars
+FRONTEND_URL=http://localhost:3000
+```
+
+Also create `v2/apps/api/.env` (gitignored) with the actual DATABASE_URL from the Neon connection. Copy it from `v2/packages/db/.env`.
+
+### Auth middleware plugin (`v2/apps/api/src/plugins/auth.ts`)
+
+This is the CORE auth logic. It must support DUAL authentication:
+
+1. **Cookie auth** (for web browser): reads `access_token` from httpOnly cookie
+2. **Bearer auth** (for mobile app): reads `Authorization: Bearer <token>` header
+3. Cookie takes priority if both are present
+
+Implement as Fastify decorators:
+- `fastify.decorate('extractUser', ...)` — sets `request.user` from token (cookie OR bearer). Non-blocking — if no token, `request.user` is null.
+- `fastify.decorate('requireAuth', ...)` — preHandler hook that returns 401 if no user
+- `fastify.decorate('requireAdmin', ...)` — preHandler hook that returns 403 if user.role !== 'admin'
+
+Augment the Fastify types:
 ```typescript
-import { defineConfig } from 'drizzle-kit';
-
-export default defineConfig({
-  schema: './src/schema.ts',
-  out: './drizzle',
-  dialect: 'postgresql',
-  dbCredentials: {
-    url: process.env.DATABASE_URL!,
-  },
-});
-```
-
-### `v2/packages/db/package.json` — Add scripts
-
-Add these scripts to the existing package.json:
-```json
-{
-  "scripts": {
-    "db:generate": "drizzle-kit generate",
-    "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio",
-    "db:seed": "tsx src/seed.ts",
-    "lint": "echo 'db: no lint configured yet'",
-    "build": "echo 'db: consumed via transpilePackages — no build needed'"
+declare module 'fastify' {
+  interface FastifyRequest {
+    user: { id: number; email: string; role: string; name: string } | null;
   }
 }
 ```
 
-### `v2/packages/db/src/seed.ts`
+### Auth service (`v2/apps/api/src/services/auth.service.ts`)
 
-Seed script that populates the database for development. Port the seed data from:
-- Categories: read `defaultCategories` from `/searchanycars.com/server/bootstrap.js` (8 categories: Hatchback, Sedan, SUV, MUV, Coupe, Pickup, Luxury Sedan, Luxury SUV)
-- Filter definitions: read `defaultFilterDefinitions` from the same file (13 filters)
-- Category-filter map: all categories get all filters
-- Sample listings: port at least the first 5 sample listings from the `sampleListings` array in bootstrap.js, adapting the data to the new schema (images as JSONB arrays, specs as JSONB object)
-- Admin user: create a default admin with email `admin@searchanycars.com` and a bcrypt-hashed password (use the same `bcryptjs` library)
-- Site config: port the `defaultConfig` from `/searchanycars.com/src/config/defaults.ts` as key-value pairs
+- `hashPassword(plain: string): string` — bcrypt with 12 salt rounds
+- `verifyPassword(plain: string, hash: string): boolean` — bcrypt compare
+- `generateAccessToken(user): string` — JWT with { id, email, role, name }
+- `generateRefreshToken(user): string` — JWT with { id, type: 'refresh' }
+- `verifyAccessToken(token): payload | null`
+- `verifyRefreshToken(token): payload | null`
+- `setAuthCookies(reply, accessToken, refreshToken)` — httpOnly, secure in prod, sameSite 'none' if secure else 'lax'
+- `clearAuthCookies(reply)`
 
-The seed script must be idempotent — running it multiple times should not create duplicates (use upsert or check-before-insert).
+Use `@fastify/cookie` for cookie management. Use `jsonwebtoken` for JWT.
 
-### `v2/packages/shared/src/index.ts`
+### Session service (`v2/apps/api/src/services/session.service.ts`)
 
-Export all Zod schemas and inferred TypeScript types.
+- `createSession(userId, refreshToken, ip, userAgent)` — insert into sessions table via Drizzle
+- `findSession(refreshToken)` — find non-expired session
+- `deleteSession(refreshToken)` — delete session
+- `deleteAllUserSessions(userId)` — delete all sessions for a user
+- `cleanExpiredSessions()` — delete expired sessions
 
-### `v2/packages/shared/src/schemas/listing.ts`
+All operations use the Drizzle `db` client from `@searchanycars/db`.
 
-Zod schemas for listing:
-- `listingSchema` — full listing type (matches DB row)
-- `createListingSchema` — input validation for POST (required: listingCode, title, brand, model)
-- `updateListingSchema` — partial input for PUT
-- `listingFilterSchema` — query param validation for GET /listings (search, brand, fuel_type, etc.)
-- Inferred types: `Listing`, `CreateListingInput`, `UpdateListingInput`, `ListingFilter`
+### Email service (`v2/apps/api/src/services/email.service.ts`)
 
-### `v2/packages/shared/src/schemas/user.ts`
+Port from the old `/searchanycars.com/server/services/emailService.js`. Same two functions:
+- `sendPasswordResetEmail(toEmail, resetToken)` — HTML email with reset link
+- `sendBookingConfirmationEmail(toEmail, booking)` — HTML email with booking details
 
-- `registerSchema` — { email, password (min 6), name }
-- `loginSchema` — { email, password }
-- `forgotPasswordSchema` — { email }
-- `resetPasswordSchema` — { token, password }
-- `changePasswordSchema` — { currentPassword, newPassword }
-- Inferred types for each
+If SMTP credentials are not configured (empty SMTP_USER), log a warning and skip sending. Do NOT crash the server.
 
-### `v2/packages/shared/src/schemas/booking.ts`
+### Auth routes (`v2/apps/api/src/routes/auth.ts`)
 
-- `createBookingSchema` — { listingId, name, phone, email?, preferredDate?, preferredTime?, locationPreference?, notes? }
-- `updateBookingStatusSchema` — { status: enum(pending/confirmed/completed/cancelled) }
-- Inferred types
+Register as a Fastify plugin under prefix `/api/v1/auth`. Use Zod schemas from `@searchanycars/shared` for request validation. Port ALL endpoints from the old `/searchanycars.com/server/routes/auth.js`:
 
-### `v2/packages/shared/src/schemas/category.ts`
+**Public routes (with auth rate limiter):**
+- POST `/register` — validate with `registerSchema`, check email uniqueness, hash password, create user, create session, set cookies, return user
+- POST `/login` — validate with `loginSchema`, verify credentials, create session, set cookies, return user
+- POST `/refresh` — read refresh token from cookie OR body, verify, rotate tokens
+- POST `/forgot-password` — validate with `forgotPasswordSchema`, generate reset token, send email (always return success to prevent email enumeration)
+- POST `/reset-password` — validate with `resetPasswordSchema`, verify token, update password, invalidate all sessions
 
-- `createCategorySchema` — { name, slug, vehicleType, description? }
-- `updateCategorySchema` — same fields, partial
-- Inferred types
+**Protected routes (requireAuth):**
+- POST `/logout` — clear cookies, delete session
+- GET `/me` — return current user profile
+- POST `/change-password` — validate with `changePasswordSchema`, verify current password, update
 
-### `v2/packages/shared/src/schemas/common.ts`
+**Admin routes (requireAdmin):**
+- GET `/users` — list all users (without password_hash)
+- POST `/users` — create user with specified role
+- PUT `/users/:id` — update user name/role/password
+- DELETE `/users/:id` — delete user (cannot delete self)
 
-- `paginationSchema` — { page?, limit?, cursor? } for paginated queries
-- `idParamSchema` — { id: z.coerce.number().int().positive() }
+### `v2/apps/api/src/app.ts` — MODIFY
+
+Update the app factory to register all new plugins and routes:
+
+```typescript
+import Fastify from 'fastify';
+import cors from '@fastify/cors';
+import helmet from '@fastify/helmet';
+import cookie from '@fastify/cookie';
+import { config } from './config.js';
+import { healthPlugin } from './plugins/health.js';
+import { authPlugin } from './plugins/auth.js';
+import { rateLimitPlugin } from './plugins/rate-limit.js';
+import { authRoutes } from './routes/auth.js';
+
+export async function createApp() {
+  const app = Fastify({
+    logger: {
+      level: config.logLevel,
+      ...(config.isDev && {
+        transport: { target: 'pino-pretty', options: { colorize: true } },
+      }),
+    },
+  });
+
+  // Core plugins
+  await app.register(helmet, { contentSecurityPolicy: false });
+  await app.register(cors, { origin: config.corsOrigins, credentials: true });
+  await app.register(cookie);
+  await app.register(rateLimitPlugin);
+  await app.register(authPlugin);
+
+  // Routes
+  await app.register(healthPlugin);
+  await app.register(authRoutes, { prefix: '/api/v1/auth' });
+
+  return app;
+}
+```
+
+### New dependencies to add to `v2/apps/api/package.json`
+
+```json
+{
+  "dependencies": {
+    "jsonwebtoken": "^9",
+    "bcryptjs": "^3",
+    "nodemailer": "^7",
+    "crypto": "built-in — no install needed"
+  },
+  "devDependencies": {
+    "@types/jsonwebtoken": "^9",
+    "@types/bcryptjs": "^2",
+    "@types/nodemailer": "^6"
+  }
+}
+```
+
+Add these to the existing dependencies — do not replace what's already there.
 
 ---
 
-## Environment setup
+## API versioning
 
-The agent must handle the database connection. Two options:
+ALL routes in this step and future steps use the `/api/v1/` prefix. This is critical for mobile app compatibility — when you release breaking changes, you create `/api/v2/` without breaking existing mobile app versions.
 
-**Option A (recommended for development):** Use a free cloud PostgreSQL:
-- Railway: `railway add --plugin postgresql` → gets `DATABASE_URL`
-- Neon: free tier at neon.tech
-- Supabase: free tier
+---
 
-**Option B (local):** If PostgreSQL is installed locally:
+## Error handling
+
+Create `v2/apps/api/src/lib/errors.ts` with a typed error class:
+
+```typescript
+export class AppError extends Error {
+  constructor(
+    public statusCode: number,
+    message: string,
+    public code?: string,
+  ) {
+    super(message);
+    this.name = 'AppError';
+  }
+}
 ```
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/searchanycars
+
+Register a global error handler in the Fastify app that catches AppError instances and returns structured JSON:
+```json
+{ "message": "Invalid email or password", "code": "INVALID_CREDENTIALS" }
 ```
 
-Create a `.env` file in `v2/packages/db/` with the `DATABASE_URL`. Add `.env` to `.gitignore` (should already be there from step 01).
+For Zod validation errors, return 400 with the Zod error details formatted cleanly.
 
 ---
 
@@ -355,48 +346,70 @@ Create a `.env` file in `v2/packages/db/` with the `DATABASE_URL`. Add `.env` to
 ```bash
 cd v2
 
-# 1. Install any new dependencies
+# Install new deps
 pnpm install
 
-# 2. Generate migration files
-cd packages/db
-pnpm db:generate
+# Create .env in apps/api with DATABASE_URL (copy from packages/db/.env)
+cp packages/db/.env apps/api/.env
 
-# 3. Push schema to database
-pnpm db:push
+# Start the API
+cd apps/api && pnpm dev
 
-# 4. Run seed script
-pnpm db:seed
+# Test registration
+curl -X POST http://localhost:4000/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"test123","name":"Test User"}' \
+  -c cookies.txt -v
+# → 201 with user object, Set-Cookie headers for access_token and refresh_token
 
-# 5. Verify with Drizzle Studio (opens a UI to browse the database)
-pnpm db:studio
-# → verify all tables exist
-# → verify seed data is present (8 categories, 13 filters, 5+ listings, 1 admin user)
+# Test login
+curl -X POST http://localhost:4000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"test123"}' \
+  -c cookies.txt -v
+# → 200 with user object
 
-# 6. Go back to root and verify full build
+# Test /me with cookie
+curl http://localhost:4000/api/v1/auth/me -b cookies.txt
+# → 200 with user profile
+
+# Test /me with Bearer token (extract access_token from cookie header)
+curl http://localhost:4000/api/v1/auth/me \
+  -H "Authorization: Bearer <access-token-from-cookie>"
+# → 200 with same user profile
+
+# Test admin login (use seeded admin from step 02)
+curl -X POST http://localhost:4000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@searchanycars.com","password":"admin123"}' \
+  -c admin-cookies.txt
+
+# Test admin list users
+curl http://localhost:4000/api/v1/auth/users -b admin-cookies.txt
+# → 200 with array of users
+
+# Test validation error
+curl -X POST http://localhost:4000/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"bad"}'
+# → 400 with Zod validation error
+
+# Health check still works
+curl http://localhost:4000/api/health
+# → {"ok": true}
+
+# Full build
 cd ../..
 pnpm build
-
-# 7. Verify imports work — the api app should be able to import from @searchanycars/db and @searchanycars/shared
 ```
 
 ---
 
 ## What NOT to do
 
-- Do NOT create 193 columns on the listings table — use only the ~50 columns specified above + specs JSONB
-- Do NOT modify any files in `/searchanycars.com/`
-- Do NOT add API routes (that's step 03)
-- Do NOT modify `apps/web` or `apps/api` source code beyond what's needed for imports to work
-- Do NOT hardcode the DATABASE_URL — always read from env var
-- Do NOT use `pg` package — use `postgres` (postgres.js) as the driver for Drizzle
-
----
-
-## Notes for next step
-
-After this step, `03-api-core-auth.md` will:
-- Build the Fastify auth system using the users/sessions tables from this schema
-- Add JWT dual auth (cookie for web, Bearer for mobile)
-- Wire up Redis for session caching
-- Use the Zod schemas from packages/shared for request validation
+- Do NOT modify `/searchanycars.com/`
+- Do NOT create listing/booking/favorite routes (that's steps 04-05)
+- Do NOT modify `apps/web/` (that's steps 06+)
+- Do NOT use `pg` package — the Drizzle client in packages/db already uses `postgres` (postgres.js)
+- Do NOT hardcode any secrets in source code — all secrets come from env vars or dev defaults in config.ts
+- Do NOT create a separate Redis integration yet — sessions stay in PostgreSQL for now (Redis comes later as an optimization)
