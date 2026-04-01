@@ -1,343 +1,220 @@
-# CLAUDE.md — Step 03: Fastify API Core + Authentication
+# CLAUDE.md — Step 05: Favorites, Bookings, and Admin APIs
 
 ## Project context
 
-You are continuing the **SearchAnyCars.com v2** rebuild. Steps 01 (monorepo) and 02 (database schema) are complete. The Drizzle schema and Zod schemas are ready in `v2/packages/db` and `v2/packages/shared`. The old codebase at `/searchanycars.com/` is READ-ONLY reference.
+You are continuing the **SearchAnyCars.com v2** rebuild. Steps 01-04 are complete. The Fastify API has auth, listings CRUD, categories, filters, image upload, site config, and paginated full-text search — all working. The old codebase at `/searchanycars.com/` is READ-ONLY reference.
 
-This step builds the **Fastify API server core** and the **complete auth system**. After this step, you will have a running API with user registration, login, token refresh, logout, password reset, and admin user management — all validated with Zod schemas.
+This is the **final backend step**. After this, the API is complete and we move to the frontend.
 
 ---
 
-## Reference: Old auth implementation
+## Reference: Old implementation
 
-Read these files from the old codebase to understand the auth patterns to replicate:
-- `/searchanycars.com/server/routes/auth.js` — all auth endpoints (register, login, refresh, logout, forgot/reset password, change password, admin CRUD users)
-- `/searchanycars.com/server/services/authService.js` — JWT generation, bcrypt hashing, cookie management
-- `/searchanycars.com/server/services/sessionService.js` — session CRUD in database
-- `/searchanycars.com/server/services/emailService.js` — password reset + booking confirmation emails via nodemailer
-- `/searchanycars.com/server/middleware/auth.js` — extractUser, requireAuth, requireAdmin middleware
-- `/searchanycars.com/server/middleware/security.js` — CORS, rate limiting, helmet config
-- `/searchanycars.com/server/config.js` — all configuration values and env vars
+Read these sections from the old codebase:
+- `/searchanycars.com/server/index.js` — search for "Favorites (Wishlist)" section (~line 350) and "Test Drive Bookings" section (~line 400). Study the favorite sync logic (bulk merge with PUT /favorites), booking creation with email notification, admin booking management, and the cancel-as-soft-delete pattern.
+- `/searchanycars.com/src/api/client.ts` — check how the frontend calls favorites and bookings endpoints
 
-Replicate the same functionality but with these improvements:
-1. **Dual auth**: cookie for web + Bearer token header for mobile (the old code only used cookies)
-2. **Zod validation**: use schemas from `@searchanycars/shared` for all request bodies
-3. **Fastify plugins**: each feature is a Fastify plugin, not Express middleware
-4. **Type safety**: full TypeScript, no `any` types
+Key patterns to replicate:
+- **Favorites**: GET user's favorites, POST add, DELETE remove, PUT bulk sync (merge local IDs with server). Return listing IDs only (not full listing objects) for the list endpoint.
+- **Bookings**: GET user's bookings (with listing details joined), POST create (with fire-and-forget email), DELETE cancel (soft delete — sets status to 'cancelled'). Admin: GET all bookings with user info joined, PATCH update status.
+- **Admin booking status**: The old code used GET to avoid CORS issues — we fix this by using PATCH properly since our CORS is correctly configured.
 
 ---
 
 ## What you are building in this step
 
-All changes go in `v2/apps/api/`. The packages/db and packages/shared from step 02 are consumed via workspace imports.
+### Routes to create:
 
-### API features:
-1. **Server core**: Fastify with structured plugin registration, error handling, request logging
-2. **Auth middleware**: extract user from cookie OR Bearer header, requireAuth, requireAdmin decorators
-3. **Auth routes** (all under `/api/v1/auth/`):
-   - POST `/register` — create user, issue tokens
-   - POST `/login` — verify credentials, issue tokens
-   - POST `/refresh` — rotate refresh token
-   - POST `/logout` — clear tokens and session
-   - GET `/me` — get current user profile
-   - POST `/forgot-password` — send reset email
-   - POST `/reset-password` — validate token, set new password
-   - POST `/change-password` — logged-in password change
-   - GET `/users` — admin: list all users
-   - POST `/users` — admin: create user
-   - PUT `/users/:id` — admin: update user
-   - DELETE `/users/:id` — admin: delete user
-4. **Email service**: nodemailer for password reset and booking confirmation emails
-5. **Rate limiting**: strict on auth endpoints (20 req/15min in production), relaxed global (200 req/15min)
-6. **CORS**: strict origin whitelist from env var
+**Favorites** (prefix `/api/v1/favorites`) — all require auth:
+- GET `/` — get current user's favorite listing IDs (array of numbers)
+- POST `/:listingId` — add a listing to favorites
+- DELETE `/:listingId` — remove a listing from favorites
+- PUT `/` — bulk sync: body `{ ids: number[] }` merges with existing, returns full merged list
+
+**Bookings** (prefix `/api/v1/bookings`) — require auth:
+- GET `/` — get current user's bookings with listing details (title, brand, model, price, images, location)
+- POST `/` — create a booking. Send confirmation email (fire-and-forget). Validate with `createBookingSchema`.
+- DELETE `/:id` — cancel a booking (set status to 'cancelled'). User can only cancel their own unless admin.
+
+**Admin bookings** (prefix `/api/v1/admin/bookings`) — require admin:
+- GET `/` — get ALL bookings with user info (name, email, phone) and listing info joined
+- PATCH `/:id/status` — update booking status. Validate with `updateBookingStatusSchema`. Body: `{ status: 'pending' | 'confirmed' | 'completed' | 'cancelled' }`
 
 ---
 
 ## Success criteria
 
-1. The API starts with `cd v2/apps/api && pnpm dev` on port 4000
-2. POST `/api/v1/auth/register` with `{ email, password, name }` creates a user and returns user object + sets httpOnly cookies
-3. POST `/api/v1/auth/login` with `{ email, password }` returns user + sets cookies
-4. GET `/api/v1/auth/me` with cookie OR `Authorization: Bearer <token>` returns the user
-5. POST `/api/v1/auth/refresh` rotates tokens correctly
-6. POST `/api/v1/auth/logout` clears cookies and session
-7. POST `/api/v1/auth/forgot-password` generates a reset token in the database (email sending can be fire-and-forget with error logging if SMTP is not configured)
-8. POST `/api/v1/auth/change-password` works for logged-in users
-9. Admin routes (GET/POST/PUT/DELETE `/api/v1/auth/users`) are protected by admin role check
-10. Invalid request bodies are rejected with Zod validation errors (400 status)
-11. `cd v2 && pnpm build` passes with zero errors
-12. `/searchanycars.com/` is untouched
+1. POST `/api/v1/favorites/1` (as logged-in user) adds listing 1 to favorites, returns 201
+2. GET `/api/v1/favorites` returns `[1]`
+3. DELETE `/api/v1/favorites/1` removes it, returns 200
+4. PUT `/api/v1/favorites` with `{ ids: [1, 2, 3] }` merges and returns the full list
+5. POST `/api/v1/bookings` with valid body creates a booking, returns 201 with booking ID
+6. GET `/api/v1/bookings` returns user's bookings with listing title, brand, images joined
+7. DELETE `/api/v1/bookings/:id` sets status to 'cancelled'
+8. GET `/api/v1/admin/bookings` (admin) returns all bookings with user name/email and listing title
+9. PATCH `/api/v1/admin/bookings/:id/status` with `{ status: "confirmed" }` updates the status
+10. Non-authenticated users get 401 on all endpoints
+11. Non-admin users get 403 on admin endpoints
+12. `cd v2 && pnpm build` passes with zero errors
+13. `/searchanycars.com/` is untouched
 
 ---
 
-## File structure to create
+## File structure
 
 ```
 v2/apps/api/src/
-├── index.ts                    # Entry point (already exists from step 01)
-├── app.ts                      # App factory (MODIFY — register all plugins)
-├── config.ts                   # Config (MODIFY — add auth/db/email env vars)
-├── plugins/
-│   ├── health.ts               # Health check (already exists)
-│   ├── auth.ts                 # Auth middleware plugin (extractUser, requireAuth, requireAdmin)
-│   └── rate-limit.ts           # Rate limiting config
 ├── routes/
-│   └── auth.ts                 # All auth route handlers
-├── services/
-│   ├── auth.service.ts         # JWT generation, bcrypt, cookie management
-│   ├── session.service.ts      # Session CRUD using Drizzle
-│   └── email.service.ts        # Nodemailer for password reset + booking emails
-└── lib/
-    └── errors.ts               # Typed error classes (AppError, etc.)
+│   ├── auth.ts              # (step 03 — do not modify)
+│   ├── listings.ts          # (step 04 — do not modify)
+│   ├── categories.ts        # (step 04 — do not modify)
+│   ├── filters.ts           # (step 04 — do not modify)
+│   ├── uploads.ts           # (step 04 — do not modify)
+│   ├── site-config.ts       # (step 04 — do not modify)
+│   ├── favorites.ts         # NEW
+│   ├── bookings.ts          # NEW
+│   └── admin-bookings.ts    # NEW
+└── app.ts                   # MODIFY — register new routes
 ```
 
 ---
 
 ## Detailed specifications
 
-### `v2/apps/api/src/config.ts` — MODIFY existing file
+### Favorites route (`v2/apps/api/src/routes/favorites.ts`)
 
-Add all required env vars. In development, provide defaults for non-secret values only. In production, all secrets MUST be env vars.
+Register as Fastify plugin with prefix `/api/v1/favorites`. All routes require `requireAuth` preHandler.
 
-```typescript
-import 'dotenv/config';
+#### GET `/` — Get user's favorites
 
-export const config = {
-  // Server
-  port: Number(process.env.PORT || 4000),
-  nodeEnv: process.env.NODE_ENV || 'development',
-  isDev: (process.env.NODE_ENV || 'development') !== 'production',
-  logLevel: process.env.LOG_LEVEL || 'info',
+Query `user_favorites` where `user_id = request.user.id`, ordered by `created_at DESC`. Return array of listing IDs: `[3, 1, 5]`.
 
-  // CORS
-  corsOrigins: (process.env.CORS_ORIGINS || 'http://localhost:3000')
-    .split(',').map(s => s.trim()).filter(Boolean),
+#### POST `/:listingId` — Add favorite
 
-  // JWT
-  jwtAccessSecret: process.env.JWT_ACCESS_SECRET || 'dev-access-secret-change-in-production-min32chars!',
-  jwtRefreshSecret: process.env.JWT_REFRESH_SECRET || 'dev-refresh-secret-change-in-production-min32chars!',
-  jwtAccessExpiry: process.env.JWT_ACCESS_EXPIRY || '15m',
-  jwtRefreshExpiry: process.env.JWT_REFRESH_EXPIRY || '7d',
+Parse `listingId` from params (validate as positive integer). Check listing exists (404 if not). Insert into `user_favorites` with `ON CONFLICT DO NOTHING` (idempotent). Return 201 `{ message: "Added to favorites", listingId }`.
 
-  // Database
-  databaseUrl: process.env.DATABASE_URL || '',
+#### DELETE `/:listingId` — Remove favorite
 
-  // Cookies
-  cookieSecure: process.env.COOKIE_SECURE === 'true',
-  cookieDomain: process.env.COOKIE_DOMAIN || undefined,
+Delete from `user_favorites` where user_id and listing_id match. Return 200 `{ message: "Removed from favorites", listingId }`.
 
-  // Email (SMTP)
-  smtpHost: process.env.SMTP_HOST || 'smtp.gmail.com',
-  smtpPort: Number(process.env.SMTP_PORT || 587),
-  smtpUser: process.env.SMTP_USER || '',
-  smtpPass: process.env.SMTP_PASS || '',
-  companyEmail: process.env.COMPANY_EMAIL || 'hello@searchanycars.com',
-  companyName: process.env.COMPANY_NAME || 'SearchAnyCars',
-  frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
+#### PUT `/` — Bulk sync favorites
 
-  // Rate limiting
-  rateLimitWindowMs: Number(process.env.RATE_LIMIT_WINDOW_MS || 900000),
-  rateLimitMax: Number(process.env.RATE_LIMIT_MAX || ((process.env.NODE_ENV || 'development') !== 'production' ? 1000 : 200)),
-} as const;
-```
+Body: `{ ids: number[] }` (validate with Zod — array of positive integers).
 
-### `v2/apps/api/.env.example` — UPDATE
+This is the sync endpoint used by the mobile app. It merges the provided IDs with existing server-side favorites. Logic:
+1. Insert each ID with `ON CONFLICT DO NOTHING` (won't duplicate)
+2. Query the full merged list
+3. Return the complete array of listing IDs
 
-```bash
-PORT=4000
-NODE_ENV=development
-LOG_LEVEL=info
-CORS_ORIGINS=http://localhost:3000
+This does NOT delete server-side favorites that aren't in the provided list — it's a merge, not a replace. This matches the old behavior.
 
-# Database (Neon PostgreSQL)
-DATABASE_URL=postgresql://user:pass@host/db?sslmode=require
+### Bookings route (`v2/apps/api/src/routes/bookings.ts`)
 
-# JWT secrets (generate random strings for production)
-JWT_ACCESS_SECRET=dev-access-secret-change-in-production-min32chars!
-JWT_REFRESH_SECRET=dev-refresh-secret-change-in-production-min32chars!
+Register with prefix `/api/v1/bookings`. All routes require `requireAuth`.
 
-# Cookies
-COOKIE_SECURE=false
-# COOKIE_DOMAIN=
+#### GET `/` — Get user's bookings
 
-# Email (optional — auth works without it, password reset emails just won't send)
-# SMTP_HOST=smtp.gmail.com
-# SMTP_PORT=587
-# SMTP_USER=your-email@gmail.com
-# SMTP_PASS=your-app-password
-COMPANY_EMAIL=hello@searchanycars.com
-COMPANY_NAME=SearchAnyCars
-FRONTEND_URL=http://localhost:3000
-```
-
-Also create `v2/apps/api/.env` (gitignored) with the actual DATABASE_URL from the Neon connection. Copy it from `v2/packages/db/.env`.
-
-### Auth middleware plugin (`v2/apps/api/src/plugins/auth.ts`)
-
-This is the CORE auth logic. It must support DUAL authentication:
-
-1. **Cookie auth** (for web browser): reads `access_token` from httpOnly cookie
-2. **Bearer auth** (for mobile app): reads `Authorization: Bearer <token>` header
-3. Cookie takes priority if both are present
-
-Implement as Fastify decorators:
-- `fastify.decorate('extractUser', ...)` — sets `request.user` from token (cookie OR bearer). Non-blocking — if no token, `request.user` is null.
-- `fastify.decorate('requireAuth', ...)` — preHandler hook that returns 401 if no user
-- `fastify.decorate('requireAdmin', ...)` — preHandler hook that returns 403 if user.role !== 'admin'
-
-Augment the Fastify types:
-```typescript
-declare module 'fastify' {
-  interface FastifyRequest {
-    user: { id: number; email: string; role: string; name: string } | null;
-  }
-}
-```
-
-### Auth service (`v2/apps/api/src/services/auth.service.ts`)
-
-- `hashPassword(plain: string): string` — bcrypt with 12 salt rounds
-- `verifyPassword(plain: string, hash: string): boolean` — bcrypt compare
-- `generateAccessToken(user): string` — JWT with { id, email, role, name }
-- `generateRefreshToken(user): string` — JWT with { id, type: 'refresh' }
-- `verifyAccessToken(token): payload | null`
-- `verifyRefreshToken(token): payload | null`
-- `setAuthCookies(reply, accessToken, refreshToken)` — httpOnly, secure in prod, sameSite 'none' if secure else 'lax'
-- `clearAuthCookies(reply)`
-
-Use `@fastify/cookie` for cookie management. Use `jsonwebtoken` for JWT.
-
-### Session service (`v2/apps/api/src/services/session.service.ts`)
-
-- `createSession(userId, refreshToken, ip, userAgent)` — insert into sessions table via Drizzle
-- `findSession(refreshToken)` — find non-expired session
-- `deleteSession(refreshToken)` — delete session
-- `deleteAllUserSessions(userId)` — delete all sessions for a user
-- `cleanExpiredSessions()` — delete expired sessions
-
-All operations use the Drizzle `db` client from `@searchanycars/db`.
-
-### Email service (`v2/apps/api/src/services/email.service.ts`)
-
-Port from the old `/searchanycars.com/server/services/emailService.js`. Same two functions:
-- `sendPasswordResetEmail(toEmail, resetToken)` — HTML email with reset link
-- `sendBookingConfirmationEmail(toEmail, booking)` — HTML email with booking details
-
-If SMTP credentials are not configured (empty SMTP_USER), log a warning and skip sending. Do NOT crash the server.
-
-### Auth routes (`v2/apps/api/src/routes/auth.ts`)
-
-Register as a Fastify plugin under prefix `/api/v1/auth`. Use Zod schemas from `@searchanycars/shared` for request validation. Port ALL endpoints from the old `/searchanycars.com/server/routes/auth.js`:
-
-**Public routes (with auth rate limiter):**
-- POST `/register` — validate with `registerSchema`, check email uniqueness, hash password, create user, create session, set cookies, return user
-- POST `/login` — validate with `loginSchema`, verify credentials, create session, set cookies, return user
-- POST `/refresh` — read refresh token from cookie OR body, verify, rotate tokens
-- POST `/forgot-password` — validate with `forgotPasswordSchema`, generate reset token, send email (always return success to prevent email enumeration)
-- POST `/reset-password` — validate with `resetPasswordSchema`, verify token, update password, invalidate all sessions
-
-**Protected routes (requireAuth):**
-- POST `/logout` — clear cookies, delete session
-- GET `/me` — return current user profile
-- POST `/change-password` — validate with `changePasswordSchema`, verify current password, update
-
-**Admin routes (requireAdmin):**
-- GET `/users` — list all users (without password_hash)
-- POST `/users` — create user with specified role
-- PUT `/users/:id` — update user name/role/password
-- DELETE `/users/:id` — delete user (cannot delete self)
-
-### `v2/apps/api/src/app.ts` — MODIFY
-
-Update the app factory to register all new plugins and routes:
-
-```typescript
-import Fastify from 'fastify';
-import cors from '@fastify/cors';
-import helmet from '@fastify/helmet';
-import cookie from '@fastify/cookie';
-import { config } from './config.js';
-import { healthPlugin } from './plugins/health.js';
-import { authPlugin } from './plugins/auth.js';
-import { rateLimitPlugin } from './plugins/rate-limit.js';
-import { authRoutes } from './routes/auth.js';
-
-export async function createApp() {
-  const app = Fastify({
-    logger: {
-      level: config.logLevel,
-      ...(config.isDev && {
-        transport: { target: 'pino-pretty', options: { colorize: true } },
-      }),
-    },
-  });
-
-  // Core plugins
-  await app.register(helmet, { contentSecurityPolicy: false });
-  await app.register(cors, { origin: config.corsOrigins, credentials: true });
-  await app.register(cookie);
-  await app.register(rateLimitPlugin);
-  await app.register(authPlugin);
-
-  // Routes
-  await app.register(healthPlugin);
-  await app.register(authRoutes, { prefix: '/api/v1/auth' });
-
-  return app;
-}
-```
-
-### New dependencies to add to `v2/apps/api/package.json`
-
+Join `test_drive_bookings` with `listings` to include listing details. Return:
 ```json
-{
-  "dependencies": {
-    "jsonwebtoken": "^9",
-    "bcryptjs": "^3",
-    "nodemailer": "^7",
-    "crypto": "built-in — no install needed"
-  },
-  "devDependencies": {
-    "@types/jsonwebtoken": "^9",
-    "@types/bcryptjs": "^2",
-    "@types/nodemailer": "^6"
+[
+  {
+    "id": 1,
+    "listingId": 3,
+    "carTitle": "2022 Hyundai Creta SX(O)",
+    "name": "Karthi",
+    "phone": "+91 9876543210",
+    "email": "karthi@example.com",
+    "preferredDate": "2026-04-15",
+    "preferredTime": "10:00 AM",
+    "locationPreference": "hub",
+    "notes": null,
+    "status": "pending",
+    "createdAt": "2026-04-01T...",
+    "listing": {
+      "title": "2022 Hyundai Creta SX(O)",
+      "brand": "Hyundai",
+      "model": "Creta",
+      "listingPriceInr": 1450000,
+      "images": ["..."],
+      "locationCity": "New Delhi"
+    }
   }
-}
+]
 ```
 
-Add these to the existing dependencies — do not replace what's already there.
+Order by `created_at DESC`.
 
----
+#### POST `/` — Create booking
 
-## API versioning
+Validate with `createBookingSchema` from `@searchanycars/shared`. Required: `listingId`, `name`, `phone`. Optional: `carTitle`, `email`, `preferredDate`, `preferredTime`, `locationPreference`, `notes`.
 
-ALL routes in this step and future steps use the `/api/v1/` prefix. This is critical for mobile app compatibility — when you release breaking changes, you create `/api/v2/` without breaking existing mobile app versions.
+1. Check listing exists (404 if not)
+2. Sanitize text inputs (strip HTML from name, phone, notes)
+3. Insert into `test_drive_bookings`
+4. Send confirmation email (fire-and-forget — catch and log errors, don't fail the request):
+   - Look up user's email from the users table
+   - If email exists and email service is configured, call `sendBookingConfirmationEmail`
+5. Return 201 `{ id: booking.id, message: "Booking created successfully" }`
 
----
+#### DELETE `/:id` — Cancel booking
 
-## Error handling
+1. Find the booking by ID
+2. If not found → 404
+3. If `booking.user_id !== request.user.id` AND `request.user.role !== 'admin'` → 403
+4. Update status to 'cancelled' and set `updated_at`
+5. Return 200 `{ message: "Booking cancelled" }`
 
-Create `v2/apps/api/src/lib/errors.ts` with a typed error class:
+### Admin bookings route (`v2/apps/api/src/routes/admin-bookings.ts`)
 
-```typescript
-export class AppError extends Error {
-  constructor(
-    public statusCode: number,
-    message: string,
-    public code?: string,
-  ) {
-    super(message);
-    this.name = 'AppError';
-  }
-}
-```
+Register with prefix `/api/v1/admin/bookings`. All routes require `requireAdmin`.
 
-Register a global error handler in the Fastify app that catches AppError instances and returns structured JSON:
+#### GET `/` — Get all bookings
+
+Join `test_drive_bookings` with `listings` AND `users` to include both listing and user info:
 ```json
-{ "message": "Invalid email or password", "code": "INVALID_CREDENTIALS" }
+[
+  {
+    "id": 1,
+    "listingId": 3,
+    "carTitle": "...",
+    "name": "Karthi",
+    "phone": "+91 9876543210",
+    "status": "pending",
+    "createdAt": "...",
+    "listingTitle": "2022 Hyundai Creta SX(O)",
+    "listingBrand": "Hyundai",
+    "listingModel": "Creta",
+    "listingPriceInr": 1450000,
+    "userName": "Karthi",
+    "userEmail": "karthi@example.com",
+    "userPhone": "+91 9876543210"
+  }
+]
 ```
 
-For Zod validation errors, return 400 with the Zod error details formatted cleanly.
+Order by `created_at DESC`.
+
+#### PATCH `/:id/status` — Update booking status
+
+Validate body with `updateBookingStatusSchema`: `{ status: 'pending' | 'confirmed' | 'completed' | 'cancelled' }`.
+
+1. Find booking (404 if not found)
+2. Update status and `updated_at`
+3. Return 200 `{ message: "Booking status updated", id, status }`
+
+### Update `v2/apps/api/src/app.ts`
+
+Register the 3 new route plugins:
+```typescript
+import { favoriteRoutes } from './routes/favorites.js';
+import { bookingRoutes } from './routes/bookings.js';
+import { adminBookingRoutes } from './routes/admin-bookings.js';
+
+// In createApp():
+await app.register(favoriteRoutes, { prefix: '/api/v1/favorites' });
+await app.register(bookingRoutes, { prefix: '/api/v1/bookings' });
+await app.register(adminBookingRoutes, { prefix: '/api/v1/admin/bookings' });
+```
 
 ---
 
@@ -345,58 +222,89 @@ For Zod validation errors, return 400 with the Zod error details formatted clean
 
 ```bash
 cd v2
-
-# Install new deps
 pnpm install
-
-# Create .env in apps/api with DATABASE_URL (copy from packages/db/.env)
-cp packages/db/.env apps/api/.env
-
-# Start the API
 cd apps/api && pnpm dev
 
-# Test registration
-curl -X POST http://localhost:4000/api/v1/auth/register \
+# Login as regular user (use the test user from step 03, or register a new one)
+curl -s -X POST http://localhost:4000/api/v1/auth/register \
   -H "Content-Type: application/json" \
-  -d '{"email":"test@example.com","password":"test123","name":"Test User"}' \
-  -c cookies.txt -v
-# → 201 with user object, Set-Cookie headers for access_token and refresh_token
+  -d '{"email":"buyer@test.com","password":"test123","name":"Car Buyer"}' \
+  -c user-cookies.txt
 
-# Test login
-curl -X POST http://localhost:4000/api/v1/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"test@example.com","password":"test123"}' \
-  -c cookies.txt -v
-# → 200 with user object
-
-# Test /me with cookie
-curl http://localhost:4000/api/v1/auth/me -b cookies.txt
-# → 200 with user profile
-
-# Test /me with Bearer token (extract access_token from cookie header)
-curl http://localhost:4000/api/v1/auth/me \
-  -H "Authorization: Bearer <access-token-from-cookie>"
-# → 200 with same user profile
-
-# Test admin login (use seeded admin from step 02)
-curl -X POST http://localhost:4000/api/v1/auth/login \
+# Login as admin
+curl -s -X POST http://localhost:4000/api/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"admin@searchanycars.com","password":"admin123"}' \
   -c admin-cookies.txt
 
-# Test admin list users
-curl http://localhost:4000/api/v1/auth/users -b admin-cookies.txt
-# → 200 with array of users
+# === FAVORITES ===
 
-# Test validation error
-curl -X POST http://localhost:4000/api/v1/auth/register \
+# Add favorite
+curl -s -X POST http://localhost:4000/api/v1/favorites/1 -b user-cookies.txt
+# → 201
+
+# Add another
+curl -s -X POST http://localhost:4000/api/v1/favorites/3 -b user-cookies.txt
+
+# List favorites
+curl -s http://localhost:4000/api/v1/favorites -b user-cookies.txt
+# → [3, 1] or [1, 3]
+
+# Bulk sync
+curl -s -X PUT http://localhost:4000/api/v1/favorites \
   -H "Content-Type: application/json" \
-  -d '{"email":"bad"}'
-# → 400 with Zod validation error
+  -b user-cookies.txt \
+  -d '{"ids": [1, 2, 5]}'
+# → merged list including 1, 2, 3, 5
 
-# Health check still works
-curl http://localhost:4000/api/health
-# → {"ok": true}
+# Remove favorite
+curl -s -X DELETE http://localhost:4000/api/v1/favorites/3 -b user-cookies.txt
+
+# === BOOKINGS ===
+
+# Create booking
+curl -s -X POST http://localhost:4000/api/v1/bookings \
+  -H "Content-Type: application/json" \
+  -b user-cookies.txt \
+  -d '{"listingId":1,"name":"Car Buyer","phone":"+91 9876543210","preferredDate":"2026-04-15","preferredTime":"10:00 AM"}'
+# → 201 { id: 1, message: "Booking created successfully" }
+
+# List my bookings
+curl -s http://localhost:4000/api/v1/bookings -b user-cookies.txt
+# → array with booking + listing details
+
+# Cancel booking
+curl -s -X DELETE http://localhost:4000/api/v1/bookings/1 -b user-cookies.txt
+# → { message: "Booking cancelled" }
+
+# === ADMIN BOOKINGS ===
+
+# Create another booking first (as the user)
+curl -s -X POST http://localhost:4000/api/v1/bookings \
+  -H "Content-Type: application/json" \
+  -b user-cookies.txt \
+  -d '{"listingId":2,"name":"Car Buyer","phone":"+91 9876543210"}'
+
+# Admin: list all bookings
+curl -s http://localhost:4000/api/v1/admin/bookings -b admin-cookies.txt
+# → all bookings with user info
+
+# Admin: update booking status
+curl -s -X PATCH http://localhost:4000/api/v1/admin/bookings/2/status \
+  -H "Content-Type: application/json" \
+  -b admin-cookies.txt \
+  -d '{"status":"confirmed"}'
+# → { message: "Booking status updated", id: 2, status: "confirmed" }
+
+# === AUTH CHECKS ===
+
+# Unauthenticated → 401
+curl -s http://localhost:4000/api/v1/favorites
+# → 401
+
+# Non-admin → 403 on admin route
+curl -s http://localhost:4000/api/v1/admin/bookings -b user-cookies.txt
+# → 403
 
 # Full build
 cd ../..
@@ -408,8 +316,39 @@ pnpm build
 ## What NOT to do
 
 - Do NOT modify `/searchanycars.com/`
-- Do NOT create listing/booking/favorite routes (that's steps 04-05)
-- Do NOT modify `apps/web/` (that's steps 06+)
-- Do NOT use `pg` package — the Drizzle client in packages/db already uses `postgres` (postgres.js)
-- Do NOT hardcode any secrets in source code — all secrets come from env vars or dev defaults in config.ts
-- Do NOT create a separate Redis integration yet — sessions stay in PostgreSQL for now (Redis comes later as an optimization)
+- Do NOT modify any routes from steps 03-04
+- Do NOT modify `apps/web/` (frontend starts in step 06)
+- Do NOT add WebSocket/SSE for real-time updates — keep it simple with REST
+- Do NOT over-engineer the booking system — no calendar integration, no payment, just the CRUD
+
+---
+
+## API completion summary
+
+After this step, the complete API has these endpoint groups:
+
+| Prefix | Endpoints | Auth |
+|--------|-----------|------|
+| `/api/health` | 1 | Public |
+| `/api/v1/auth/*` | 12 | Mixed |
+| `/api/v1/listings/*` | 5 | Public read, Admin write |
+| `/api/v1/categories/*` | 4 + 2 filter mapping | Public read, Admin write |
+| `/api/v1/filters/*` | 1 | Public |
+| `/api/v1/uploads/*` | 1 | Admin |
+| `/api/v1/site-config/*` | 3 | Public read, Admin write |
+| `/api/v1/favorites/*` | 4 | Auth required |
+| `/api/v1/bookings/*` | 3 | Auth required |
+| `/api/v1/admin/bookings/*` | 2 | Admin required |
+| **Total** | **~37 endpoints** | |
+
+This is the complete backend. Steps 06-10 are all frontend + deployment.
+
+---
+
+## Notes for next step
+
+Step 06 (`06-nextjs-layout-homepage.md`) will:
+- Build the Next.js layout (header, footer, navigation) matching the v1 design
+- Build the SSR homepage (hero, search widget, budget brackets, brands, featured cars, trust bar)
+- Connect to the API using server components + TanStack Query
+- All styled with Tailwind matching the Navy + Coral design system
