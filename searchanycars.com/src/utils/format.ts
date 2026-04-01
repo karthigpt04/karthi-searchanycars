@@ -69,3 +69,8 @@ export const DEFAULT_TENURE_MONTHS = 48
 export const LOW_KM_THRESHOLD = 30000
 
 export const formatCurrency = formatINR
+
+/** Returns the canonical URL path for a car listing, e.g. /car/2022-hyundai-creta-sxo-1 */
+export const carUrl = (car: { id: number; slug?: string | null }): string => {
+  return `/car/${car.slug || car.id}`
+}

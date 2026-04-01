@@ -6,8 +6,9 @@ import { PriceRangeSlider } from '../components/PriceRangeSlider'
 import {
   formatINR, formatKM, calculateMonthlyPayment,
   PLACEHOLDER_CAR_IMAGE, DEFAULT_LOAN_PERCENT, DEFAULT_INTEREST_RATE,
-  DEFAULT_TENURE_MONTHS,
+  DEFAULT_TENURE_MONTHS, carUrl,
 } from '../utils/format'
+import { useWishlist } from '../context/WishlistContext'
 
 const SPLUS_THRESHOLD = 4000000
 
@@ -53,9 +54,7 @@ export const SPlusPage = () => {
   const [allCars, setAllCars] = useState<Listing[]>([])
   const [loading, setLoading] = useState(true)
   const [displayCount, setDisplayCount] = useState(12)
-  const [wishlist, setWishlist] = useState<number[]>(() => {
-    try { return JSON.parse(localStorage.getItem('sac_wishlist') || '[]') } catch { return [] }
-  })
+  const { wishlistIds: wishlist, toggleWishlist: contextToggleWishlist } = useWishlist()
 
   // Filters
   const [search, setSearch] = useState('')
@@ -159,13 +158,7 @@ export const SPlusPage = () => {
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
   }, [getFilteredCars])
 
-  const toggleWishlist = (id: number) => {
-    setWishlist((prev) => {
-      const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-      localStorage.setItem('sac_wishlist', JSON.stringify(next))
-      return next
-    })
-  }
+  const toggleWishlist = (id: number) => contextToggleWishlist(id)
 
   const toggleQuickTag = (key: string) => {
     setActiveQuickTags((prev) => prev.includes(key) ? prev.filter((t) => t !== key) : [...prev, key])
@@ -564,7 +557,7 @@ const SPlusCard = ({
 
   return (
     <article className="splus-card">
-      <Link to={`/car/${car.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+      <Link to={carUrl(car)} style={{ textDecoration: 'none', color: 'inherit' }}>
         <div className="splus-card-img-wrap">
           <img src={heroImage} alt={car.title} className="splus-card-img" loading="lazy" />
           <span className="splus-card-badge">S-Plus</span>

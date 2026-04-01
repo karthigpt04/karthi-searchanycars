@@ -3,7 +3,7 @@ import type { Listing } from '../types'
 import {
   formatINR, formatKM, calculateMonthlyPayment,
   PLACEHOLDER_CAR_IMAGE, DEFAULT_LOAN_PERCENT, DEFAULT_INTEREST_RATE,
-  DEFAULT_TENURE_MONTHS, LOW_KM_THRESHOLD,
+  DEFAULT_TENURE_MONTHS, LOW_KM_THRESHOLD, carUrl,
 } from '../utils/format'
 
 interface CarCardProps {
@@ -33,7 +33,7 @@ export const CarCard = ({
 
   return (
     <article className="car-card">
-      <Link to={`/car/${car.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+      <Link to={carUrl(car)} style={{ textDecoration: 'none', color: 'inherit' }}>
         <div className="car-image-wrap">
           <img src={heroImage} alt={car.title} className="car-image" loading="lazy" />
           <div className="car-badge-row">
@@ -56,7 +56,7 @@ export const CarCard = ({
       </Link>
 
       <div className="car-content">
-        <Link to={`/car/${car.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+        <Link to={carUrl(car)} style={{ textDecoration: 'none', color: 'inherit' }}>
           <h3 className="car-title">{car.title}</h3>
         </Link>
         <div className="car-price-row">
@@ -102,7 +102,7 @@ export const CarCard = ({
               {compared ? '✓ Added' : 'Compare'}
             </button>
           )}
-          <Link to={`/car/${car.id}`} className="btn btn-primary btn-sm">View</Link>
+          <Link to={carUrl(car)} className="btn btn-primary btn-sm">View</Link>
         </div>
       </div>
     </article>

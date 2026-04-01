@@ -1,6 +1,7 @@
 import 'dotenv/config'
 import express from 'express'
 import cookieParser from 'cookie-parser'
+import compression from 'compression'
 import multer from 'multer'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -13,11 +14,19 @@ import { uploadImage } from './storage.js'
 
 import { requestLogger } from './middleware/requestLogger.js'
 import { setupSecurity } from './middleware/security.js'
-import { extractUser, requireAdmin } from './middleware/auth.js'
+import { extractUser, requireAuth, requireAdmin } from './middleware/auth.js'
 import { errorHandler } from './middleware/errorHandler.js'
+import {
+  seoMiddleware,
+  robotsTxtHandler,
+  sitemapIndexHandler,
+  sitemapStaticHandler,
+  sitemapListingsHandler,
+} from './middleware/seo.js'
 
 import { authRouter } from './routes/auth.js'
 import { sseRouter, broadcast } from './routes/sse.js'
+import { sendBookingConfirmationEmail } from './services/emailService.js'
 
 // ── Derive __dirname for ESM ──
 const __filename = fileURLToPath(import.meta.url)
@@ -43,21 +52,34 @@ const upload = multer({
 })
 
 // ── Middleware chain ──
+app.use(compression())
 app.use(requestLogger)
 setupSecurity(app)
 app.use(express.json({ limit: '3mb' }))
 app.use(cookieParser())
 app.use(extractUser)
 
-// ── Static files ──
+// ── Static files with cache headers ──
+const uploadStaticOpts = { maxAge: '30d', etag: true }
 if (uploadsDir === 'uploads') {
-  app.use('/uploads', express.static('uploads'))
+  app.use('/uploads', express.static('uploads', uploadStaticOpts))
 } else {
-  app.use('/uploads', express.static(uploadsDir))
+  app.use('/uploads', express.static(uploadsDir, uploadStaticOpts))
 }
-app.use(express.static('dist'))
 
-const hasWebBuild = fs.existsSync(path.join(__dirname, '..', 'dist', 'index.html'))
+// Hashed Vite assets get long cache; other dist files get short cache
+app.use('/assets', express.static(path.join('dist', 'assets'), { maxAge: '1y', immutable: true }))
+app.use(express.static('dist', { maxAge: '1h', index: false }))
+
+const distIndexPath = path.join(__dirname, '..', 'dist', 'index.html')
+const hasWebBuild = fs.existsSync(distIndexPath)
+const htmlTemplate = hasWebBuild ? fs.readFileSync(distIndexPath, 'utf-8') : null
+
+// ── SEO routes ──
+app.get('/robots.txt', robotsTxtHandler)
+app.get('/sitemap.xml', sitemapIndexHandler)
+app.get('/sitemap-static.xml', sitemapStaticHandler)
+app.get('/sitemap-listings.xml', sitemapListingsHandler)
 
 // ── Auth routes ──
 app.use('/api/auth', authRouter)
@@ -189,6 +211,15 @@ const mapWhere = (query) => {
 
 const stripHtml = (str) => typeof str === 'string' ? str.replace(/<[^>]*>/g, '') : str
 
+const generateSlug = (year, brand, model, variant) => {
+  const parts = [year, brand, model, variant].filter(Boolean)
+  return parts
+    .join('-')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
 const listingUpsertColumns = [
   'category_id',
   'listing_code',
@@ -235,6 +266,9 @@ const listingUpsertColumns = [
   'images_json',
   'additional_notes',
   'specs_json',
+  'slug',
+  'meta_title',
+  'meta_description',
 ]
 
 const normalizeListingPayload = (payload) => ({
@@ -283,6 +317,9 @@ const normalizeListingPayload = (payload) => ({
   images_json: JSON.stringify(Array.isArray(payload.images) ? payload.images : []),
   additional_notes: payload.additionalNotes ?? null,
   specs_json: JSON.stringify(payload.specs ?? {}),
+  slug: payload.slug ?? null, // Will be auto-generated after insert
+  meta_title: payload.metaTitle ?? null,
+  meta_description: payload.metaDescription ?? null,
 })
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -514,7 +551,13 @@ app.post('/api/listings', requireAdmin, (req, res) => {
     const placeholders = listingUpsertColumns.map(() => '?').join(', ')
     const sql = `INSERT INTO listings (${listingUpsertColumns.join(', ')}) VALUES (${placeholders})`
     const result = db.prepare(sql).run(...listingUpsertColumns.map((column) => payload[column]))
-    const created = db.prepare('SELECT * FROM listings WHERE id = ?').get(result.lastInsertRowid)
+    const newId = result.lastInsertRowid
+    // Auto-generate slug if not provided
+    if (!payload.slug) {
+      const slug = `${generateSlug(payload.model_year, payload.brand, payload.model, payload.variant)}-${newId}`
+      db.prepare('UPDATE listings SET slug = ? WHERE id = ?').run(slug, newId)
+    }
+    const created = db.prepare('SELECT * FROM listings WHERE id = ?').get(newId)
     res.status(201).json(toListing(created))
   } catch (error) {
     if (error?.code === 'SQLITE_CONSTRAINT_UNIQUE') {
@@ -616,22 +659,197 @@ app.put('/api/site-config/:key', requireAdmin, (req, res) => {
 })
 
 // ────────────────────────────────────────────────────────────────────────────
-//  SPA Fallback
+//  Favorites (Wishlist) — syncs between web & mobile
 // ────────────────────────────────────────────────────────────────────────────
 
-app.get('/{*any}', (req, res, next) => {
-  if (req.path.startsWith('/api/') || req.path.startsWith('/uploads/')) {
-    next()
-    return
-  }
-
-  if (!hasWebBuild) {
-    res.status(404).json({ message: 'Frontend build not found. Run npm run build.' })
-    return
-  }
-
-  res.sendFile(path.join(__dirname, '../dist/index.html'))
+// Get current user's favorites
+app.get('/api/favorites', requireAuth, (req, res) => {
+  const rows = db.prepare(
+    'SELECT listing_id FROM user_favorites WHERE user_id = ? ORDER BY created_at DESC'
+  ).all(req.user.id)
+  res.json(rows.map(r => r.listing_id))
 })
+
+// Add a favorite
+app.post('/api/favorites/:listingId', requireAuth, (req, res) => {
+  const listingId = parseInt(req.params.listingId, 10)
+  if (isNaN(listingId)) return res.status(400).json({ message: 'Invalid listing ID' })
+
+  const listing = db.prepare('SELECT id FROM listings WHERE id = ?').get(listingId)
+  if (!listing) return res.status(404).json({ message: 'Listing not found' })
+
+  try {
+    db.prepare(
+      'INSERT OR IGNORE INTO user_favorites (user_id, listing_id) VALUES (?, ?)'
+    ).run(req.user.id, listingId)
+    res.status(201).json({ message: 'Added to favorites', listingId })
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to add favorite' })
+  }
+})
+
+// Remove a favorite
+app.delete('/api/favorites/:listingId', requireAuth, (req, res) => {
+  const listingId = parseInt(req.params.listingId, 10)
+  if (isNaN(listingId)) return res.status(400).json({ message: 'Invalid listing ID' })
+
+  db.prepare(
+    'DELETE FROM user_favorites WHERE user_id = ? AND listing_id = ?'
+  ).run(req.user.id, listingId)
+  res.status(200).json({ message: 'Removed from favorites', listingId })
+})
+
+// Bulk sync favorites (POST array of IDs — merges with existing)
+app.put('/api/favorites', requireAuth, (req, res) => {
+  const { ids } = req.body
+  if (!Array.isArray(ids)) return res.status(400).json({ message: 'ids must be an array' })
+
+  const insertStmt = db.prepare(
+    'INSERT OR IGNORE INTO user_favorites (user_id, listing_id) VALUES (?, ?)'
+  )
+  const tx = db.transaction((listingIds) => {
+    for (const id of listingIds) {
+      if (typeof id === 'number' && id > 0) insertStmt.run(req.user.id, id)
+    }
+  })
+  tx(ids)
+
+  // Return the full merged list
+  const rows = db.prepare(
+    'SELECT listing_id FROM user_favorites WHERE user_id = ? ORDER BY created_at DESC'
+  ).all(req.user.id)
+  res.json(rows.map(r => r.listing_id))
+})
+
+// ────────────────────────────────────────────────────────────────────────────
+//  Test Drive Bookings — syncs between web & mobile
+// ────────────────────────────────────────────────────────────────────────────
+
+// Get current user's bookings
+app.get('/api/bookings', requireAuth, (req, res) => {
+  const rows = db.prepare(`
+    SELECT b.*, l.title as listing_title, l.brand, l.model, l.listing_price_inr,
+           l.images_json, l.location_city
+    FROM test_drive_bookings b
+    LEFT JOIN listings l ON l.id = b.listing_id
+    WHERE b.user_id = ?
+    ORDER BY b.created_at DESC
+  `).all(req.user.id)
+
+  res.json(rows.map(r => ({
+    ...r,
+    images: parseJson(r.images_json, []),
+    images_json: undefined,
+  })))
+})
+
+// Create a booking
+app.post('/api/bookings', requireAuth, (req, res) => {
+  const { listingId, carTitle, name, phone, email, preferredDate, preferredTime, locationPreference, notes } = req.body
+
+  if (!listingId || !name || !phone) {
+    return res.status(400).json({ message: 'listingId, name, and phone are required' })
+  }
+
+  const listing = db.prepare('SELECT id, title FROM listings WHERE id = ?').get(listingId)
+  if (!listing) return res.status(404).json({ message: 'Listing not found' })
+
+  const result = db.prepare(`
+    INSERT INTO test_drive_bookings (user_id, listing_id, car_title, name, phone, email, preferred_date, preferred_time, location_preference, notes)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    req.user.id,
+    listingId,
+    carTitle || listing.title,
+    stripHtml(name),
+    stripHtml(phone),
+    email ? stripHtml(email) : null,
+    preferredDate || null,
+    preferredTime || null,
+    locationPreference || 'hub',
+    notes ? stripHtml(notes) : null,
+  )
+
+  // Send confirmation email (fire-and-forget)
+  const userRow = db.prepare('SELECT email FROM users WHERE id = ?').get(req.user.id)
+  if (userRow?.email) {
+    sendBookingConfirmationEmail(userRow.email, {
+      carTitle: carTitle || listing.title,
+      name: stripHtml(name),
+      phone: stripHtml(phone),
+      preferredDate: preferredDate || null,
+      preferredTime: preferredTime || null,
+      locationPreference: locationPreference || 'hub',
+      notes: notes ? stripHtml(notes) : null,
+    }).catch(err => console.error('[Email] Booking confirmation failed:', err.message))
+  }
+
+  res.status(201).json({
+    id: result.lastInsertRowid,
+    message: 'Booking created successfully',
+  })
+})
+
+// Admin: update booking status (uses GET to avoid SameSite cookie issues with cross-origin POST)
+app.get('/api/admin/update-booking-status', requireAdmin, (req, res) => {
+  const { bookingId, status } = req.query
+  const id = parseInt(bookingId, 10)
+  if (isNaN(id)) return res.status(400).json({ message: 'Invalid booking ID' })
+
+  const validStatuses = ['pending', 'confirmed', 'completed', 'cancelled']
+  if (!status || !validStatuses.includes(status)) {
+    return res.status(400).json({ message: `Status must be one of: ${validStatuses.join(', ')}` })
+  }
+
+  const booking = db.prepare('SELECT id FROM test_drive_bookings WHERE id = ?').get(id)
+  if (!booking) return res.status(404).json({ message: 'Booking not found' })
+
+  db.prepare(
+    "UPDATE test_drive_bookings SET status = ?, updated_at = datetime('now') WHERE id = ?"
+  ).run(status, id)
+
+  res.json({ message: 'Booking status updated', id, status })
+})
+
+// Cancel a booking
+app.delete('/api/bookings/:id', requireAuth, (req, res) => {
+  const id = parseInt(req.params.id, 10)
+  if (isNaN(id)) return res.status(400).json({ message: 'Invalid booking ID' })
+
+  const booking = db.prepare(
+    'SELECT id, user_id FROM test_drive_bookings WHERE id = ?'
+  ).get(id)
+
+  if (!booking) return res.status(404).json({ message: 'Booking not found' })
+  if (booking.user_id !== req.user.id && req.user.role !== 'admin') {
+    return res.status(403).json({ message: 'Not authorized' })
+  }
+
+  db.prepare(
+    "UPDATE test_drive_bookings SET status = 'cancelled', updated_at = datetime('now') WHERE id = ?"
+  ).run(id)
+
+  res.json({ message: 'Booking cancelled' })
+})
+
+// Admin: get all bookings
+app.get('/api/admin/bookings', requireAdmin, (req, res) => {
+  const rows = db.prepare(`
+    SELECT b.*, l.title as listing_title, l.brand, l.model, l.listing_price_inr,
+           u.name as user_name, u.email as user_email, u.phone as user_phone
+    FROM test_drive_bookings b
+    LEFT JOIN listings l ON l.id = b.listing_id
+    LEFT JOIN users u ON u.id = b.user_id
+    ORDER BY b.created_at DESC
+  `).all()
+  res.json(rows)
+})
+
+// ────────────────────────────────────────────────────────────────────────────
+//  SPA Fallback with SSR Meta Injection
+// ────────────────────────────────────────────────────────────────────────────
+
+app.get('/{*any}', seoMiddleware(htmlTemplate))
 
 // ────────────────────────────────────────────────────────────────────────────
 //  Error handler (must be last)

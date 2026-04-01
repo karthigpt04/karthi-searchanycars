@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api/client'
 import type { Listing } from '../types'
-import { formatINR, formatKM, PLACEHOLDER_CAR_IMAGE } from '../utils/format'
+import { formatINR, formatKM, PLACEHOLDER_CAR_IMAGE, carUrl } from '../utils/format'
 
 export const AdminPage = () => {
   const [listings, setListings] = useState<Listing[]>([])
@@ -216,7 +216,7 @@ export const AdminPage = () => {
                     <Link to={`/admin/car/${car.id}/edit`} className="btn btn-sm btn-outline">
                       Edit
                     </Link>
-                    <Link to={`/car/${car.id}`} className="btn btn-sm btn-ghost" target="_blank">
+                    <Link to={carUrl(car)} className="btn btn-sm btn-ghost" target="_blank">
                       View
                     </Link>
                     {deleteConfirm === car.id ? (

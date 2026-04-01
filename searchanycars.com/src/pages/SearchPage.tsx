@@ -4,7 +4,7 @@ import { api } from '../api/client'
 import { CarCard } from '../components/CarCard'
 import { PriceRangeSlider } from '../components/PriceRangeSlider'
 import type { Listing } from '../types'
-import { WISHLIST_STORAGE_KEY } from '../utils/format'
+import { useWishlist } from '../context/WishlistContext'
 
 const cityOptions = [
   'New Delhi', 'Mumbai', 'Bengaluru', 'Chennai', 'Hyderabad', 'Pune',
@@ -43,9 +43,7 @@ export const SearchPage = () => {
   const [comparedIds, setComparedIds] = useState<number[]>([])
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false)
   const [displayCount, setDisplayCount] = useState(12)
-  const [wishlist, setWishlist] = useState<number[]>(() => {
-    try { return JSON.parse(localStorage.getItem(WISHLIST_STORAGE_KEY) || '[]') } catch { return [] }
-  })
+  const { wishlistIds: wishlist, toggleWishlist: contextToggleWishlist } = useWishlist()
 
   // Filters — initialized from URL params
   const [search, setSearch] = useState(searchParams.get('search') || '')
@@ -134,13 +132,7 @@ export const SearchPage = () => {
     setComparedIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : prev.length >= 3 ? [...prev.slice(1), id] : [...prev, id])
   }
 
-  const toggleWishlist = (id: number) => {
-    setWishlist((prev) => {
-      const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-      localStorage.setItem(WISHLIST_STORAGE_KEY, JSON.stringify(next))
-      return next
-    })
-  }
+  const toggleWishlist = (id: number) => contextToggleWishlist(id)
 
   const toggleQuickTag = (key: string) => {
     setActiveQuickTags((prev) => prev.includes(key) ? prev.filter((t) => t !== key) : [...prev, key])

@@ -6,8 +6,9 @@ import { PriceRangeSlider } from '../components/PriceRangeSlider'
 import {
   formatINR, calculateMonthlyPayment,
   PLACEHOLDER_CAR_IMAGE, DEFAULT_LOAN_PERCENT, DEFAULT_INTEREST_RATE,
-  DEFAULT_TENURE_MONTHS,
+  DEFAULT_TENURE_MONTHS, carUrl,
 } from '../utils/format'
+import { useWishlist } from '../context/WishlistContext'
 
 const carTypes = [
   { label: 'All', value: '' },
@@ -44,9 +45,7 @@ export const SPlusNewPage = () => {
   const [allCars, setAllCars] = useState<Listing[]>([])
   const [loading, setLoading] = useState(true)
   const [displayCount, setDisplayCount] = useState(12)
-  const [wishlist, setWishlist] = useState<number[]>(() => {
-    try { return JSON.parse(localStorage.getItem('sac_wishlist') || '[]') } catch { return [] }
-  })
+  const { wishlistIds: wishlist, toggleWishlist: contextToggleWishlist } = useWishlist()
 
   // Filters
   const [search, setSearch] = useState('')
@@ -124,13 +123,7 @@ export const SPlusNewPage = () => {
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
   }, [getFilteredCars])
 
-  const toggleWishlist = (id: number) => {
-    setWishlist((prev) => {
-      const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-      localStorage.setItem('sac_wishlist', JSON.stringify(next))
-      return next
-    })
-  }
+  const toggleWishlist = (id: number) => contextToggleWishlist(id)
 
   const clearFilters = () => {
     setSearch(''); setCarType(''); setBrand(''); setFuelType(''); setBodyType(''); setPriceMin(''); setPriceMax(''); setSortBy('newest')
@@ -494,7 +487,7 @@ const NewCarCard = ({
   if (viewMode === 'showcase') {
     return (
       <article className="spn-card spn-card-showcase">
-        <Link to={`/car/${car.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+        <Link to={carUrl(car)} style={{ textDecoration: 'none', color: 'inherit' }}>
           <div className="spn-showcase-layout">
             <div className="spn-card-img-wrap spn-showcase-img">
               <img src={heroImage} alt={car.title} className="spn-card-img" loading="lazy" />
@@ -535,7 +528,7 @@ const NewCarCard = ({
                 {monthlyEMI > 0 && <div className="spn-card-emi">EMI from {formatINR(monthlyEMI)}/mo</div>}
               </div>
               <div className="spn-card-actions">
-                <Link to={`/car/${car.id}`} className="spn-btn-primary spn-btn-sm">View Details</Link>
+                <Link to={carUrl(car)} className="spn-btn-primary spn-btn-sm">View Details</Link>
                 <Link to="/contact" className="spn-btn-outline spn-btn-sm">Enquire Now</Link>
               </div>
             </div>
@@ -547,7 +540,7 @@ const NewCarCard = ({
 
   return (
     <article className="spn-card">
-      <Link to={`/car/${car.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+      <Link to={carUrl(car)} style={{ textDecoration: 'none', color: 'inherit' }}>
         <div className="spn-card-img-wrap">
           <img src={heroImage} alt={car.title} className="spn-card-img" loading="lazy" />
           <span className="spn-card-type-badge">{typeLabel}</span>

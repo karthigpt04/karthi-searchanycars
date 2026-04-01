@@ -1387,6 +1387,9 @@ const createTables = () => {
       known_issues TEXT,
       additional_notes TEXT,
       specs_json TEXT NOT NULL DEFAULT '{}',
+      slug TEXT,
+      meta_title TEXT,
+      meta_description TEXT,
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL
@@ -1402,6 +1405,7 @@ const createTables = () => {
     CREATE INDEX IF NOT EXISTS idx_listings_location_city ON listings(location_city);
     CREATE INDEX IF NOT EXISTS idx_listings_is_splus ON listings(is_splus);
     CREATE INDEX IF NOT EXISTS idx_listings_is_new_car ON listings(is_new_car);
+    CREATE INDEX IF NOT EXISTS idx_listings_slug ON listings(slug);
 
     CREATE TABLE IF NOT EXISTS site_config (
       key TEXT PRIMARY KEY,
@@ -1451,6 +1455,42 @@ const createTables = () => {
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
     CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_token ON password_reset_tokens(token);
+
+    -- User favorites (wishlist sync between web & mobile)
+    CREATE TABLE IF NOT EXISTS user_favorites (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      listing_id INTEGER NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (listing_id) REFERENCES listings(id) ON DELETE CASCADE,
+      UNIQUE(user_id, listing_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_user_favorites_user ON user_favorites(user_id);
+    CREATE INDEX IF NOT EXISTS idx_user_favorites_listing ON user_favorites(listing_id);
+
+    -- Test drive bookings (synced between web & mobile)
+    CREATE TABLE IF NOT EXISTS test_drive_bookings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      listing_id INTEGER NOT NULL,
+      car_title TEXT NOT NULL DEFAULT '',
+      name TEXT NOT NULL,
+      phone TEXT NOT NULL,
+      email TEXT,
+      preferred_date TEXT,
+      preferred_time TEXT,
+      location_preference TEXT DEFAULT 'hub',
+      notes TEXT,
+      status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'confirmed', 'completed', 'cancelled')),
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (listing_id) REFERENCES listings(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_bookings_user ON test_drive_bookings(user_id);
+    CREATE INDEX IF NOT EXISTS idx_bookings_listing ON test_drive_bookings(listing_id);
+    CREATE INDEX IF NOT EXISTS idx_bookings_status ON test_drive_bookings(status);
   `)
 }
 
@@ -1733,6 +1773,33 @@ const seedDefaultAdmin = () => {
   }
 }
 
+const generateSlug = (year, brand, model, variant) => {
+  const parts = [year, brand, model, variant].filter(Boolean)
+  return parts
+    .join('-')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+const migrateSlugColumn = () => {
+  // Add columns if they don't exist (for existing databases)
+  try { db.prepare('SELECT slug FROM listings LIMIT 1').get() } catch {
+    db.prepare('ALTER TABLE listings ADD COLUMN slug TEXT').run()
+    db.prepare('ALTER TABLE listings ADD COLUMN meta_title TEXT').run()
+    db.prepare('ALTER TABLE listings ADD COLUMN meta_description TEXT').run()
+    db.prepare('CREATE INDEX IF NOT EXISTS idx_listings_slug ON listings(slug)').run()
+  }
+
+  // Generate slugs for any listings missing them
+  const rows = db.prepare('SELECT id, model_year, brand, model, variant FROM listings WHERE slug IS NULL').all()
+  const update = db.prepare('UPDATE listings SET slug = ? WHERE id = ?')
+  for (const row of rows) {
+    const slug = generateSlug(row.model_year, row.brand, row.model, row.variant)
+    update.run(`${slug}-${row.id}`, row.id)
+  }
+}
+
 export const bootstrapDatabase = () => {
   createTables()
   seedCategories()
@@ -1742,4 +1809,5 @@ export const bootstrapDatabase = () => {
   seedNewCarListings()
   seedSiteConfig()
   seedDefaultAdmin()
+  migrateSlugColumn()
 }

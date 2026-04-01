@@ -119,4 +119,34 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify({ value }),
     }),
+
+  // Favorites (Wishlist)
+  getFavorites: () => request<number[]>('/favorites'),
+  addFavorite: (listingId: number) =>
+    request<{ message: string; listingId: number }>(`/favorites/${listingId}`, { method: 'POST' }),
+  removeFavorite: (listingId: number) =>
+    request<{ message: string; listingId: number }>(`/favorites/${listingId}`, { method: 'DELETE' }),
+  syncFavorites: (ids: number[]) =>
+    request<number[]>('/favorites', { method: 'PUT', body: JSON.stringify({ ids }) }),
+
+  // Test Drive Bookings
+  getBookings: () => request<Array<Record<string, unknown>>>('/bookings'),
+  createBooking: (data: {
+    listingId: number
+    carTitle?: string
+    name: string
+    phone: string
+    email?: string
+    preferredDate?: string
+    preferredTime?: string
+    locationPreference?: string
+    notes?: string
+  }) => request<{ id: number; message: string }>('/bookings', { method: 'POST', body: JSON.stringify(data) }),
+  cancelBooking: (id: number) =>
+    request<{ message: string }>(`/bookings/${id}`, { method: 'DELETE' }),
+
+  // Admin Bookings
+  getAdminBookings: () => request<Array<Record<string, unknown>>>('/admin/bookings'),
+  updateBookingStatus: (id: number, status: string) =>
+    request<{ message: string }>(`/admin/update-booking-status?bookingId=${id}&status=${encodeURIComponent(status)}`),
 }

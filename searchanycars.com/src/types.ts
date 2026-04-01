@@ -67,6 +67,7 @@ export interface Listing {
   lead_count: number
   promotion_tier: string | null
   additional_notes: string | null
+  slug: string | null
   images: string[]
   specs: Record<string, unknown>
   created_at: string

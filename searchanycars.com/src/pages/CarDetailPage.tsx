@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import { CarCard } from '../components/CarCard'
 import { BookTestDriveModal } from '../components/BookTestDriveModal'
@@ -7,13 +7,16 @@ import { ReserveCarModal } from '../components/ReserveCarModal'
 import type { Listing } from '../types'
 import {
   formatINR, formatINRFull, formatKM, calculateMonthlyPayment,
-  PLACEHOLDER_CAR_IMAGE, WISHLIST_STORAGE_KEY, DEFAULT_LOAN_PERCENT,
-  DEFAULT_INTEREST_RATE, DEFAULT_TENURE_MONTHS,
+  PLACEHOLDER_CAR_IMAGE, DEFAULT_LOAN_PERCENT,
+  DEFAULT_INTEREST_RATE, DEFAULT_TENURE_MONTHS, carUrl,
 } from '../utils/format'
+import { useWishlist } from '../context/WishlistContext'
 
 export const CarDetailPage = () => {
-  const { id } = useParams()
-  const listingId = Number(id)
+  const { slug: slugParam } = useParams()
+  const navigate = useNavigate()
+  // Support both /car/123 and /car/2022-hyundai-creta-sxo-123 patterns
+  const listingId = Number(slugParam?.match(/(\d+)$/)?.[1] ?? slugParam)
 
   const [car, setCar] = useState<Listing | null>(null)
   const [similarCars, setSimilarCars] = useState<Listing[]>([])
@@ -35,9 +38,7 @@ export const CarDetailPage = () => {
   // Specs accordion
   const [openSpecs, setOpenSpecs] = useState<Record<string, boolean>>({ engine: true })
 
-  const [wishlist, setWishlist] = useState<number[]>(() => {
-    try { return JSON.parse(localStorage.getItem(WISHLIST_STORAGE_KEY) || '[]') } catch { return [] }
-  })
+  const { wishlistIds: wishlist, toggleWishlist: contextToggleWishlist } = useWishlist()
 
   useEffect(() => {
     if (!Number.isFinite(listingId)) {
@@ -47,6 +48,10 @@ export const CarDetailPage = () => {
     let cancelled = false
     api.getListingById(listingId).then(async (listing) => {
       if (cancelled) return
+      // Redirect to canonical slug URL if accessed via numeric ID
+      if (listing.slug && slugParam !== listing.slug) {
+        navigate(carUrl(listing), { replace: true })
+      }
       setCar(listing)
       const related = await api.getListings({ categoryId: listing.category_id ?? undefined })
       if (!cancelled) setSimilarCars(related.filter((c) => c.id !== listing.id).slice(0, 4))
@@ -54,13 +59,7 @@ export const CarDetailPage = () => {
     return () => { cancelled = true }
   }, [listingId])
 
-  const toggleWishlist = (carId: number) => {
-    setWishlist((prev) => {
-      const next = prev.includes(carId) ? prev.filter((x) => x !== carId) : [...prev, carId]
-      localStorage.setItem(WISHLIST_STORAGE_KEY, JSON.stringify(next))
-      return next
-    })
-  }
+  const toggleWishlist = (carId: number) => contextToggleWishlist(carId)
 
   if (loading) {
     return (
@@ -546,7 +545,7 @@ export const CarDetailPage = () => {
       </div>
 
       {/* Modals */}
-      {showTestDrive && <BookTestDriveModal carTitle={car.title} onClose={() => setShowTestDrive(false)} />}
+      {showTestDrive && <BookTestDriveModal carTitle={car.title} listingId={car.id} onClose={() => setShowTestDrive(false)} />}
       {showReserve && <ReserveCarModal carTitle={car.title} carPrice={car.listing_price_inr} onClose={() => setShowReserve(false)} />}
 
       {/* Fullscreen Gallery */}
