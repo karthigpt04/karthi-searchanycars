@@ -56,7 +56,13 @@
       "Bash(pnpm lint:*)",
       "Bash(pnpm db:generate)",
       "Bash(pnpm:*)",
-      "Bash(/home/tw10520/searchanycars/v2/apps/api/.env:*)"
+      "Bash(/home/tw10520/searchanycars/v2/apps/api/.env:*)",
+      "Bash(find:*)",
+      "Bash(sort -k2)",
+      "Bash(ls -la /home/tw10520/searchanycars/v2/packages/shared/src/schemas.test.ts /home/tw10520/searchanycars/v2/packages/db/src/schema.test.ts /home/tw10520/searchanycars/v2/apps/api/src/__tests__/*.test.ts /home/tw10520/searchanycars/v2/apps/web/src/utils/format.test.ts /home/tw10520/searchanycars/v2/apps/web/src/lib/api.test.ts)",
+      "Bash(npx vitest:*)",
+      "Bash(ls -1 /home/tw10520/searchanycars/v2/apps/web/app/*.ts /home/tw10520/searchanycars/v2/apps/web/app/*.tsx)",
+      "Bash(python3:*)"
     ]
   }
 }

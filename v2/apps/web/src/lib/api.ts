@@ -119,6 +119,36 @@ export const api = {
       method: 'DELETE',
     }),
 
+  // Admin Listings
+  createListing: (data: Record<string, unknown>) =>
+    request<unknown>('/api/v1/listings', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateListing: (id: number, data: Record<string, unknown>) =>
+    request<unknown>(`/api/v1/listings/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  deleteListing: (id: number) =>
+    request<void>(`/api/v1/listings/${id}`, { method: 'DELETE' }),
+
+  // Admin Bookings
+  getAdminBookings: () => request<Array<unknown>>('/api/v1/admin/bookings'),
+  updateBookingStatus: (id: number, status: string) =>
+    request<unknown>(`/api/v1/admin/bookings/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    }),
+
+  // Site Config (per-key)
+  getSiteConfigKey: (key: string) => request<unknown>(`/api/v1/site-config/${key}`),
+  updateSiteConfig: (key: string, value: unknown) =>
+    request<unknown>(`/api/v1/site-config/${key}`, {
+      method: 'PUT',
+      body: JSON.stringify({ value }),
+    }),
+
   // Image upload
   uploadListingImage: async (file: File) => {
     const formData = new FormData();

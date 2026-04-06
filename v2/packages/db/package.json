@@ -11,7 +11,8 @@
     "db:studio": "drizzle-kit studio",
     "db:seed": "tsx src/seed.ts",
     "lint": "echo 'db: no lint configured yet'",
-    "build": "echo 'db: consumed via transpilePackages — no build needed'"
+    "build": "echo 'db: consumed via transpilePackages — no build needed'",
+    "test": "vitest run"
   },
   "dependencies": {
     "drizzle-orm": "^0.38.0",

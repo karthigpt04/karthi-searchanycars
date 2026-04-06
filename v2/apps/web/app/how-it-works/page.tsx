@@ -1,4 +1,11 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
+
+export const metadata: Metadata = {
+  title: 'How It Works — Buy a Used Car in 4 Simple Steps',
+  description: 'Browse certified cars, book a free test drive, reserve with a refundable deposit, and get doorstep delivery. We handle RC transfer and insurance.',
+  alternates: { canonical: 'https://searchanycars.com/how-it-works' },
+};
 
 const steps = [
   { icon: '🔍', num: '1', title: 'Browse & Search', desc: 'Explore 12,000+ quality-inspected cars. Filter by brand, budget, fuel type, and city.' },

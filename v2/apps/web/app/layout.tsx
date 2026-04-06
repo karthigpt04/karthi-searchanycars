@@ -20,9 +20,37 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: "SearchAnyCars.com — Find Your Perfect Used Car",
-  description:
-    "India's trusted used car broker marketplace. Browse verified listings, compare prices, and find your dream car.",
+  metadataBase: new URL('https://searchanycars.com'),
+  title: {
+    default: 'SearchAnyCars — Buy Certified Used Cars in India',
+    template: '%s | SearchAnyCars',
+  },
+  description: 'Find certified pre-owned cars from trusted dealers across India. 200+ point inspection, 1-year warranty, 7-day money back guarantee.',
+  keywords: ['used cars', 'second hand cars', 'India', 'buy car online', 'certified pre-owned', 'used car warranty'],
+  authors: [{ name: 'SearchAnyCars' }],
+  creator: 'SearchAnyCars',
+  publisher: 'SearchAnyCars',
+  formatDetection: { telephone: true, email: true },
+  openGraph: {
+    type: 'website',
+    locale: 'en_IN',
+    siteName: 'SearchAnyCars',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    creator: '@searchanycars',
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
 };
 
 export default function RootLayout({

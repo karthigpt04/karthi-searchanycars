@@ -1,5 +1,12 @@
 import { Suspense } from 'react';
+import type { Metadata } from 'next';
 import { SearchClient } from './SearchClient';
+
+export const metadata: Metadata = {
+  title: 'Search Used Cars — Browse by Brand, Budget, City',
+  description: 'Search and compare 12,000+ used cars across India. Filter by brand, budget, fuel type, transmission, city. All cars quality-inspected with 1-year warranty.',
+  alternates: { canonical: 'https://searchanycars.com/search' },
+};
 
 export default function SearchPage() {
   return (

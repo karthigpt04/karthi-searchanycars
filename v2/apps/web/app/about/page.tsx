@@ -1,4 +1,11 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
+
+export const metadata: Metadata = {
+  title: "About Us — India's Trusted Used Car Platform",
+  description: "SearchAnyCars is India's most trusted used car marketplace. Quality-inspected cars with warranty, money-back guarantee, and free RC transfer.",
+  alternates: { canonical: 'https://searchanycars.com/about' },
+};
 
 const values = [
   { icon: '🚗', title: '12,000+ Cars', desc: 'Browse one of India\'s largest collections of quality-inspected used cars.' },

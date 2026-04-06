@@ -1,166 +1,665 @@
-# CLAUDE.md — CSS Fix: Pixel-Perfect Alignment with v1 Design
+# CLAUDE.md — Step 10: SEO Optimization
 
-## What this is
+## Project context
 
-This is NOT a new feature step. This is a **design fidelity audit and fix**. The v2 frontend has all the correct pages and components, but the CSS does not perfectly match the v1 design. Your job is to systematically compare every component and page between v1 and v2, identify every visual difference, and fix them until v2 looks identical to v1.
+You are continuing the **SearchAnyCars.com v2** rebuild. Steps 01-09 are complete — the entire app works locally. This step focuses ONLY on **SEO** — making the site discoverable by Google, Bing, and social media platforms.
 
----
-
-## Process
-
-### Phase 1: Read the ENTIRE v1 CSS
-
-Read `/searchanycars.com/src/index.css` — all 7000+ lines. This is the single source of truth for how the site should look. Every CSS property, every media query, every hover state, every transition, every shadow, every spacing value matters.
-
-### Phase 2: Compare component by component
-
-For each component/section listed below, do this:
-1. Read the v1 CSS classes from `/searchanycars.com/src/index.css`
-2. Read the v2 CSS from `v2/apps/web/app/globals.css`
-3. Compare EVERY property — colors, padding, margin, font-size, font-weight, border-radius, box-shadow, background, display, gap, grid-template-columns, transitions, hover states, active states
-4. Identify EVERY difference
-5. Fix the v2 CSS to match v1 exactly
-
-### Phase 3: Compare the JSX structure
-
-For each component, also compare:
-1. The v1 component JSX (class names used, element nesting, conditional classes)
-2. The v2 component JSX
-3. Ensure v2 uses the SAME class names as v1 where CSS classes are used
-4. If v2 uses Tailwind utilities instead of CSS classes, and the result doesn't match v1, convert to using the CSS class from globals.css instead
+The old codebase at `/searchanycars.com/` is READ-ONLY reference. All changes go in `v2/apps/web/`.
 
 ---
 
-## Components to audit (in order of visual importance)
+## Why this matters
 
-### 1. Site Header
-- v1: `/searchanycars.com/src/components/SiteHeader.tsx` + CSS `.site-header` through `.menu-toggle`
-- v2: `v2/apps/web/src/components/SiteHeader.tsx` + globals.css
-- Check: header height, background, border-bottom, brand icon size/color/radius, brand text font/size/color with coral "Any", nav link padding/font-size/hover/active states, S-Plus gold gradient link, S-Plus New teal gradient link, action buttons styling, wishlist icon, "Find Cars" button, mobile hamburger, mobile overlay nav
+SearchAnyCars is a car marketplace. The majority of traffic will come from Google searches like:
+- "used Hyundai Creta Delhi"
+- "second hand Honda City under 10 lakhs"
+- "certified used cars Bengaluru"
+- "used SUV automatic Pune"
 
-### 2. Site Footer
-- v1: `/searchanycars.com/src/components/SiteFooter.tsx` + CSS `.site-footer` through `.footer-bottom`
-- v2: `v2/apps/web/src/components/SiteFooter.tsx`
-- Check: background color (navy-dark), padding, footer-grid columns, brand text styling, column title font, link font-size/color/hover, accordion chevron on mobile, footer-bottom border/padding, responsive breakpoints
-
-### 3. Mobile Nav
-- v1: `/searchanycars.com/src/components/MobileNav.tsx` + CSS `.mobile-nav` through `.mobile-nav-icon`
-- v2: `v2/apps/web/src/components/MobileNav.tsx`
-- Check: bottom position, background, height, grid columns, icon sizes, icon-wrap dimensions/border-radius, active state colors (navy for home, coral for search, gold gradient for splus, teal for new, red for wishlist, purple for account), label font-size, display:none on desktop/display:block below 768px
-
-### 4. Car Card
-- v1: `/searchanycars.com/src/components/CarCard.tsx` + CSS `.car-card` through `.car-footer`
-- v2: `v2/apps/web/src/components/CarCard.tsx`
-- Check: card border-radius, box-shadow, hover shadow/transform, image height, image object-fit, image hover scale, badge row positioning/colors, wishlist heart button position/size, photo count badge, title font-size/weight/line-clamp, price font-size/color/weight, EMI text, specs row dot separators (size/color/spacing), location pin icon, tag row chips (colors for assured/low-km/new/single-owner), popularity fire icon, footer border-top/padding, status dot colors (green=available, orange=reserved, red=sold), button sizing
-
-### 5. Hero Section
-- v1: CSS `.hero`, `.hero-content`, `.hero h1`, `.hero-subtitle`
-- Check: gradient (135deg, navy-dark → navy → navy-light), padding, h1 font-size (clamp), h1 font-weight (800), h1 color white, subtitle font-size/color/opacity
-
-### 6. Hero Search Widget
-- v1: CSS `.hero-search`, `.search-tabs`, `.search-tab`, `.search-body`, `.search-budget-grid`, `.budget-chip`, `.search-brand-grid`, `.brand-chip`, `.search-city-row`, `.city-multi-select`, `.city-multi-select-trigger`, `.city-multi-dropdown`, `.city-dropdown-item`, `.city-selected-chips`, `.city-selected-chip`
-- Check: search widget background/border-radius/shadow, tab styling/active state, budget chip sizes/colors/active state, brand chip with logo sizing, city dropdown styling, city selected chips
-
-### 7. Trust Bar
-- v1: CSS `.trust-bar`, `.trust-bar-grid`, `.trust-item`, `.trust-icon`, `.trust-icon-blue`, `.trust-icon-green`, `.trust-icon-orange`
-- Check: background, grid layout, icon circle sizes/colors, text font-size, horizontal scroll on mobile
-
-### 8. Section Headings
-- v1: CSS `.section`, `.section-sm`, `.section-gray`, `.section-head`, `.section-head h2`, `.text-link`
-- Check: section padding (4rem vs 2.5rem), gray background color, heading font-size (clamp), heading font-weight (700), "View All" link color/hover
-
-### 9. Body Type Grid + Fuel Type Grid
-- v1: CSS `.body-type-grid`, `.body-type-card`, `.fuel-type-grid`, `.fuel-type-card`
-- Check: grid columns, card padding/border/radius/shadow, icon size, name font, count color, hover effects
-
-### 10. City Browse Grid
-- v1: CSS `.city-browse-grid`, `.city-browse-card`, `.city-card-image`, `.city-card-overlay`, `.city-card-info`
-- Check: grid columns, card aspect ratio, image cover, overlay gradient, text positioning, hover effects
-
-### 11. Brand Browse Grid
-- v1: CSS `.brand-browse-grid`, `.brand-browse-card`, `.brand-search-bar`, `.brand-search-input`
-- Check: grid columns, card padding/border, logo image size, brand name font, search bar styling
-
-### 12. Featured Tabs
-- v1: CSS `.featured-tabs`, `.featured-tab`
-- Check: tab pill styling, active state (navy background), font-size, padding
-
-### 13. Budget Pills + S-Plus Banners + S-Plus New Banners
-- v1: CSS `.budget-pills`, `.budget-pill`, `.splus-home-banner`, `.spn-home-banner` and all sub-classes
-- Check: pill sizing/colors, banner gradients, badge styling, feature icons, button styling
-
-### 14. How It Works + Reviews + Sell CTA
-- v1: CSS `.how-it-works-grid`, `.how-step`, `.reviews-grid`, `.review-card`, `.sell-cta-section`
-- Check: step numbering, icon circles, review stars color, avatar circle, CTA layout
-
-### 15. Filter Sidebar (Search Page)
-- v1: CSS `.search-layout`, `.filter-panel`, `.filter-section`, `.filter-section-title`, `.filter-chips`, `.filter-chip`, `.filter-input`, `.filter-range`, `.filter-header`, `.results-bar`, `.sort-pills`, `.sort-pill`, `.active-filter-pill`, `.quick-tags`, `.quick-tag`, `.compare-banner`, `.mobile-filter-fab`, `.filter-panel-backdrop`, `.filter-panel-open`
-- Check: sidebar width (280px), section spacing, chip sizes/colors/active states, input styling, results bar layout, sort pill active state, mobile drawer animation
-
-### 16. Car Detail Page (VDP)
-- v1: CSS `.vdp-layout`, `.vdp-sidebar`, `.gallery`, `.gallery-main`, `.gallery-nav-btn`, `.gallery-thumbs`, `.quick-specs`, `.overview-grid`, `.specs-section`, `.features-section`, `.inspection-section`, `.emi-calculator`, `.warranty-section`, `.mobile-cta-bar`, `.fullscreen-gallery`
-- Check: two-column layout widths, sidebar sticky behavior, gallery aspect ratio, thumbnail strip, nav arrow styling, quick spec strip, overview grid columns, specs accordion, EMI slider styling, warranty card layout, mobile sticky CTA
-
-### 17. Modals
-- v1: CSS `.modal-overlay`, `.modal`, `.modal-header`, `.modal-close`, `.modal-body`, `.modal-footer`, `.form-group`, `.form-label`, `.form-input`, `.form-select`, `.form-row`, `.form-success`
-- Check: overlay background, modal width/max-width/border-radius, header padding/border, close button, form field styling, success state icon
-
-### 18. Login Page
-- v1: CSS `.login-page`, `.login-card`, `.login-header`, `.login-tabs`, `.login-tab`, `.login-error`, `.login-form`, `.login-field`, `.login-submit`
-- Check: centered card width, background, padding, tab active state, input styling, submit button
-
-### 19. S-Plus Page Theme
-- v1: CSS for `.splus-page`, `.splus-hero`, all `.sp-*` themed classes
-- Check: gold color scheme, dark backgrounds, card styling variants, badge styling
-
-### 20. S-Plus New Page Theme
-- v1: CSS for `.spn-page`, `.spn-hero`, all `.spn-*` themed classes
-- Check: teal color scheme, dark backgrounds, card styling variants
-
-### 21. Buttons (Global)
-- v1: CSS `.btn`, `.btn-primary`, `.btn-secondary`, `.btn-outline`, `.btn-ghost`, `.btn-whatsapp`, `.btn-sm`, `.btn-lg`, `.btn-outline-white`
-- Check: border-radius (999px for pills), padding, font-weight, font-size, colors, hover states, shadows, transitions
-
-### 22. Responsive Breakpoints
-- v1 uses these breakpoints: 1200px, 1024px, 900px, 768px, 600px, 480px, 400px, 360px
-- For EACH component, check the responsive rules match v1
+If car detail pages and search pages don't have proper SEO, no one finds the site. This step is the difference between a website and a business.
 
 ---
 
-## How to fix
+## What you are building
 
-For each difference found:
-1. If the v2 globals.css is missing a CSS class entirely — copy it from v1's index.css
-2. If the v2 globals.css has the class but with wrong values — update the values to match v1 exactly
-3. If the v2 component uses Tailwind utilities that don't match — replace with the CSS class from globals.css
-4. If the v2 component uses different class names — update to match v1 class names
-
-**The simplest and most reliable approach**: Take the ENTIRE v1 index.css content, and ensure every single rule exists in v2's globals.css. If a rule is missing, add it. If it conflicts with Tailwind, the CSS class should take precedence (add `!important` if needed, or ensure specificity is correct).
+### 1. Dynamic meta tags for every page
+### 2. JSON-LD structured data (Organization, Vehicle, FAQPage, BreadcrumbList)
+### 3. Dynamic sitemap.xml
+### 4. robots.txt
+### 5. Canonical URLs
+### 6. Open Graph + Twitter Card tags
+### 7. Favicon and app icons
 
 ---
 
-## Verification
+## Part 1: Meta tags for every page
 
-After all fixes:
-1. Open v2 at localhost:3000
-2. For each page, visually inspect at desktop width (1280px+), tablet (768px), and mobile (375px)
-3. The following must match v1 exactly:
-   - Colors (navy #1A237E, coral #FF6B35, backgrounds, text colors)
-   - Font sizes and weights (Inter body, Poppins headings)
-   - Spacing (padding, margins, gaps)
-   - Border radius (6px, 10px, 16px, 24px, 999px for pills)
-   - Shadows (the exact shadow values from v1)
-   - Hover/active states and transitions
-   - Grid layouts and column counts at each breakpoint
-   - Mobile-specific layouts (stacked grids, hidden elements, drawer behaviors)
-4. `pnpm build` — zero errors
+Add or update the `metadata` export in every page file. Use Next.js Metadata API.
+
+### Homepage (`app/page.tsx`)
+```typescript
+export const metadata: Metadata = {
+  title: 'SearchAnyCars — Buy Certified Used Cars in India | Pre-Owned Cars with Warranty',
+  description: 'Find 12,000+ quality-inspected used cars with warranty, easy financing, and doorstep delivery across India. Browse Hyundai, Maruti Suzuki, Tata, Honda, Kia, Mahindra & more.',
+  keywords: ['used cars India', 'second hand cars', 'certified pre-owned cars', 'buy used car online', 'used car warranty', 'SearchAnyCars'],
+  openGraph: {
+    title: 'SearchAnyCars — Premium Certified Used Cars in India',
+    description: 'Find certified pre-owned cars from trusted dealers across India. 200+ point inspection, 1-year warranty, 7-day money back guarantee.',
+    url: 'https://searchanycars.com',
+    siteName: 'SearchAnyCars',
+    type: 'website',
+    locale: 'en_IN',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'SearchAnyCars — Premium Used Cars in India',
+    description: 'Find certified pre-owned cars from trusted dealers across India.',
+  },
+  alternates: {
+    canonical: 'https://searchanycars.com',
+  },
+}
+```
+
+### Car detail page (`app/car/[id]/page.tsx`)
+
+This is the MOST important page for SEO — each car listing should be a rich result in Google.
+
+Dynamic metadata using `generateMetadata`:
+```typescript
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  const car = await fetchListing(id);
+
+  if (!car) {
+    return { title: 'Car Not Found | SearchAnyCars' };
+  }
+
+  const title = `${car.title} — ${formatINR(car.listingPriceInr)} | SearchAnyCars`;
+  const description = `Buy ${car.title} in ${car.locationCity || 'India'}. ${car.totalKmDriven ? formatKM(car.totalKmDriven) + ' driven' : ''}, ${car.fuelType || ''}, ${car.transmissionType || ''}. ${car.ownershipType ? car.ownershipType + ' owner' : ''}. Certified with ${car.inspectionScore ? car.inspectionScore + '/100 inspection score' : 'quality inspection'}. 1-year warranty included.`;
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      url: `https://searchanycars.com/car/${id}`,
+      siteName: 'SearchAnyCars',
+      type: 'website',
+      locale: 'en_IN',
+      images: car.images?.length > 0
+        ? [{ url: car.images[0], width: 1200, height: 630, alt: car.title }]
+        : [],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: `${car.title} — ${formatINR(car.listingPriceInr)}`,
+      description,
+      images: car.images?.[0] ? [car.images[0]] : [],
+    },
+    alternates: {
+      canonical: `https://searchanycars.com/car/${id}`,
+    },
+  };
+}
+```
+
+### Search page (`app/search/page.tsx`)
+```typescript
+export const metadata: Metadata = {
+  title: 'Search Used Cars — Browse by Brand, Budget, City | SearchAnyCars',
+  description: 'Search and compare 12,000+ used cars across India. Filter by brand, budget, fuel type, transmission, city. All cars quality-inspected with 1-year warranty.',
+  alternates: { canonical: 'https://searchanycars.com/search' },
+}
+```
+
+### S-Plus page (`app/splus/page.tsx`)
+```typescript
+export const metadata: Metadata = {
+  title: 'S-Plus Premium Pre-Owned Cars — Luxury Collection | SearchAnyCars',
+  description: 'Handpicked premium pre-owned luxury cars. BMW, Mercedes-Benz, Audi, Jaguar, Porsche & more. 300-point inspection, 2-year warranty, white-glove delivery.',
+  alternates: { canonical: 'https://searchanycars.com/splus' },
+}
+```
+
+### S-Plus New (`app/splus-new/page.tsx`)
+```typescript
+export const metadata: Metadata = {
+  title: 'S-Plus New — Brand New Unregistered Cars | SearchAnyCars',
+  description: 'Premium unregistered, unused, and demo cars from authorized dealers. Full manufacturer warranty. Your name first on the RC. Factory-fresh condition.',
+  alternates: { canonical: 'https://searchanycars.com/splus-new' },
+}
+```
+
+### Sell page (`app/sell/page.tsx`)
+```typescript
+export const metadata: Metadata = {
+  title: 'Sell Your Car — Get Best Price | SearchAnyCars',
+  description: 'Sell your car at the best price. Free listing, instant valuation, verified buyers across India. No middleman, no hassle.',
+  alternates: { canonical: 'https://searchanycars.com/sell' },
+}
+```
+
+### About page (`app/about/page.tsx`)
+```typescript
+export const metadata: Metadata = {
+  title: 'About SearchAnyCars — India\'s Trusted Used Car Platform',
+  description: 'SearchAnyCars is India\'s most trusted used car marketplace. Quality-inspected cars with warranty, money-back guarantee, and free RC transfer.',
+  alternates: { canonical: 'https://searchanycars.com/about' },
+}
+```
+
+### How It Works (`app/how-it-works/page.tsx`)
+```typescript
+export const metadata: Metadata = {
+  title: 'How It Works — Buy a Used Car in 4 Simple Steps | SearchAnyCars',
+  description: 'Browse certified cars, book a free test drive, reserve with a refundable deposit, and get doorstep delivery. We handle RC transfer and insurance.',
+  alternates: { canonical: 'https://searchanycars.com/how-it-works' },
+}
+```
+
+### FAQ page (`app/faq/page.tsx`)
+```typescript
+export const metadata: Metadata = {
+  title: 'Frequently Asked Questions — SearchAnyCars',
+  description: 'Common questions about buying used cars on SearchAnyCars. Warranty, inspection, financing, return policy, RC transfer, and more.',
+  alternates: { canonical: 'https://searchanycars.com/faq' },
+}
+```
+
+### Contact page (`app/contact/page.tsx`)
+```typescript
+export const metadata: Metadata = {
+  title: 'Contact Us — SearchAnyCars',
+  description: 'Get in touch with SearchAnyCars. Call, WhatsApp, or email us for any queries about buying or selling used cars in India.',
+  alternates: { canonical: 'https://searchanycars.com/contact' },
+}
+```
+
+### Login page (`app/login/page.tsx`)
+```typescript
+export const metadata: Metadata = {
+  title: 'Sign In | SearchAnyCars',
+  description: 'Sign in to your SearchAnyCars account to manage bookings, wishlist, and more.',
+  robots: { index: false, follow: false },
+}
+```
+
+### Wishlist page (`app/wishlist/page.tsx`)
+```typescript
+export const metadata: Metadata = {
+  title: 'My Wishlist | SearchAnyCars',
+  robots: { index: false, follow: false },
+}
+```
+
+### My Bookings page (`app/my-bookings/page.tsx`)
+```typescript
+export const metadata: Metadata = {
+  title: 'My Bookings | SearchAnyCars',
+  robots: { index: false, follow: false },
+}
+```
+
+### Password pages (forgot, reset, change)
+```typescript
+// All should have:
+robots: { index: false, follow: false },
+```
+
+---
+
+## Part 2: JSON-LD Structured Data
+
+### Homepage — Organization + WebSite schema
+
+Add to the homepage page component (inside the JSX, at the top of `<main>`):
+
+```tsx
+<script
+  type="application/ld+json"
+  dangerouslySetInnerHTML={{
+    __html: JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'Organization',
+      name: 'SearchAnyCars',
+      url: 'https://searchanycars.com',
+      logo: 'https://searchanycars.com/icon.png',
+      description: 'India\'s most trusted used car marketplace. Quality-inspected cars with warranty and money-back guarantee.',
+      contactPoint: {
+        '@type': 'ContactPoint',
+        telephone: '+91-98765-43210',
+        contactType: 'customer service',
+        areaServed: 'IN',
+        availableLanguage: ['English', 'Hindi'],
+      },
+      sameAs: [],
+    }),
+  }}
+/>
+<script
+  type="application/ld+json"
+  dangerouslySetInnerHTML={{
+    __html: JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'WebSite',
+      name: 'SearchAnyCars',
+      url: 'https://searchanycars.com',
+      potentialAction: {
+        '@type': 'SearchAction',
+        target: 'https://searchanycars.com/search?search={search_term_string}',
+        'query-input': 'required name=search_term_string',
+      },
+    }),
+  }}
+/>
+```
+
+### Car detail page — Vehicle + BreadcrumbList schema
+
+Add to the car detail page component:
+
+```tsx
+<script
+  type="application/ld+json"
+  dangerouslySetInnerHTML={{
+    __html: JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'Vehicle',
+      name: car.title,
+      brand: { '@type': 'Brand', name: car.brand },
+      model: car.model,
+      modelDate: String(car.modelYear),
+      vehicleModelDate: String(car.modelYear),
+      mileageFromOdometer: {
+        '@type': 'QuantitativeValue',
+        value: car.totalKmDriven,
+        unitCode: 'KMT',
+      },
+      fuelType: car.fuelType,
+      vehicleTransmission: car.transmissionType,
+      color: car.exteriorColor,
+      vehicleInteriorColor: car.interiorColor,
+      numberOfDoors: 4,
+      vehicleConfiguration: car.variant || undefined,
+      offers: {
+        '@type': 'Offer',
+        price: car.listingPriceInr,
+        priceCurrency: 'INR',
+        availability: car.listingStatus === 'Active'
+          ? 'https://schema.org/InStock'
+          : car.listingStatus === 'Reserved'
+          ? 'https://schema.org/LimitedAvailability'
+          : 'https://schema.org/SoldOut',
+        itemCondition: 'https://schema.org/UsedCondition',
+        seller: {
+          '@type': 'Organization',
+          name: 'SearchAnyCars',
+          url: 'https://searchanycars.com',
+        },
+      },
+      image: car.images || [],
+      url: `https://searchanycars.com/car/${car.id}`,
+    }),
+  }}
+/>
+<script
+  type="application/ld+json"
+  dangerouslySetInnerHTML={{
+    __html: JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://searchanycars.com' },
+        { '@type': 'ListItem', position: 2, name: 'Used Cars', item: 'https://searchanycars.com/search' },
+        { '@type': 'ListItem', position: 3, name: car.title, item: `https://searchanycars.com/car/${car.id}` },
+      ],
+    }),
+  }}
+/>
+```
+
+### FAQ page — FAQPage schema
+
+Add to the FAQ page component. This enables Google to show expandable Q&A directly in search results:
+
+```tsx
+<script
+  type="application/ld+json"
+  dangerouslySetInnerHTML={{
+    __html: JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'FAQPage',
+      mainEntity: faqs.map((faq) => ({
+        '@type': 'Question',
+        name: faq.question,
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: faq.answer,
+        },
+      })),
+    }),
+  }}
+/>
+```
+
+If the FAQ data is hardcoded in the component, extract it into a data array so you can map it for both the UI rendering and the JSON-LD schema.
+
+### Search page — ItemList schema (for search result rich snippets)
+
+```tsx
+<script
+  type="application/ld+json"
+  dangerouslySetInnerHTML={{
+    __html: JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'ItemList',
+      name: 'Used Cars for Sale',
+      url: 'https://searchanycars.com/search',
+      numberOfItems: cars.length,
+      itemListElement: cars.slice(0, 10).map((car, index) => ({
+        '@type': 'ListItem',
+        position: index + 1,
+        url: `https://searchanycars.com/car/${car.id}`,
+        name: car.title,
+      })),
+    }),
+  }}
+/>
+```
+
+---
+
+## Part 3: Sitemap
+
+Create `v2/apps/web/app/sitemap.ts`:
+
+```typescript
+import type { MetadataRoute } from 'next';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+const SITE_URL = 'https://searchanycars.com';
+
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  // Static pages
+  const staticPages: MetadataRoute.Sitemap = [
+    { url: SITE_URL, lastModified: new Date(), changeFrequency: 'daily', priority: 1.0 },
+    { url: `${SITE_URL}/search`, lastModified: new Date(), changeFrequency: 'daily', priority: 0.9 },
+    { url: `${SITE_URL}/splus`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.8 },
+    { url: `${SITE_URL}/splus-new`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.8 },
+    { url: `${SITE_URL}/sell`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.7 },
+    { url: `${SITE_URL}/about`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.5 },
+    { url: `${SITE_URL}/how-it-works`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.6 },
+    { url: `${SITE_URL}/faq`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.6 },
+    { url: `${SITE_URL}/contact`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.5 },
+  ];
+
+  // Dynamic car listing pages — fetch all active listings from API
+  let carPages: MetadataRoute.Sitemap = [];
+  try {
+    const res = await fetch(`${API_URL}/api/v1/listings?limit=5000&listingStatus=Active`, {
+      next: { revalidate: 3600 },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const listings = data.data || data;
+      carPages = listings.map((car: { id: number; updatedAt?: string; updated_at?: string }) => ({
+        url: `${SITE_URL}/car/${car.id}`,
+        lastModified: car.updatedAt || car.updated_at ? new Date(car.updatedAt || car.updated_at!) : new Date(),
+        changeFrequency: 'weekly' as const,
+        priority: 0.8,
+      }));
+    }
+  } catch {
+    // API unavailable during build — skip dynamic pages silently
+  }
+
+  // Brand-specific search pages (for SEO — Google indexes brand searches)
+  const topBrands = [
+    'Maruti Suzuki', 'Hyundai', 'Tata', 'Honda', 'Kia', 'Mahindra',
+    'Toyota', 'Volkswagen', 'Skoda', 'BMW', 'Mercedes-Benz', 'Audi',
+  ];
+  const brandPages: MetadataRoute.Sitemap = topBrands.map((brand) => ({
+    url: `${SITE_URL}/search?brand=${encodeURIComponent(brand)}`,
+    lastModified: new Date(),
+    changeFrequency: 'weekly' as const,
+    priority: 0.7,
+  }));
+
+  // City-specific search pages
+  const topCities = [
+    'New Delhi', 'Mumbai', 'Bengaluru', 'Chennai', 'Hyderabad',
+    'Pune', 'Ahmedabad', 'Jaipur', 'Kolkata', 'Kochi',
+  ];
+  const cityPages: MetadataRoute.Sitemap = topCities.map((city) => ({
+    url: `${SITE_URL}/search?location_city=${encodeURIComponent(city)}`,
+    lastModified: new Date(),
+    changeFrequency: 'weekly' as const,
+    priority: 0.7,
+  }));
+
+  return [...staticPages, ...carPages, ...brandPages, ...cityPages];
+}
+```
+
+This sitemap includes:
+- 9 static pages
+- Every active car listing (dynamic)
+- 12 brand-specific search URLs (so Google indexes "used Hyundai cars" etc.)
+- 10 city-specific search URLs (so Google indexes "used cars Delhi" etc.)
+
+---
+
+## Part 4: Robots.txt
+
+Create `v2/apps/web/app/robots.ts`:
+
+```typescript
+import type { MetadataRoute } from 'next';
+
+export default function robots(): MetadataRoute.Robots {
+  return {
+    rules: [
+      {
+        userAgent: '*',
+        allow: '/',
+        disallow: [
+          '/admin/',
+          '/api/',
+          '/login',
+          '/forgot-password',
+          '/reset-password',
+          '/change-password',
+          '/my-bookings',
+        ],
+      },
+    ],
+    sitemap: 'https://searchanycars.com/sitemap.xml',
+  };
+}
+```
+
+---
+
+## Part 5: Root layout metadata base
+
+Update `v2/apps/web/app/layout.tsx` — ensure `metadataBase` is set:
+
+```typescript
+export const metadata: Metadata = {
+  metadataBase: new URL('https://searchanycars.com'),
+  title: {
+    default: 'SearchAnyCars — Buy Certified Used Cars in India',
+    template: '%s | SearchAnyCars',
+  },
+  description: 'Find certified pre-owned cars from trusted dealers across India. 200+ point inspection, 1-year warranty, 7-day money back guarantee.',
+  keywords: ['used cars', 'second hand cars', 'India', 'buy car online', 'certified pre-owned', 'used car warranty'],
+  authors: [{ name: 'SearchAnyCars' }],
+  creator: 'SearchAnyCars',
+  publisher: 'SearchAnyCars',
+  formatDetection: { telephone: true, email: true },
+  openGraph: {
+    type: 'website',
+    locale: 'en_IN',
+    siteName: 'SearchAnyCars',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    creator: '@searchanycars',
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
+}
+```
+
+---
+
+## Part 6: Favicon and App Icons
+
+### Dynamic favicon (`v2/apps/web/app/icon.tsx`)
+
+```tsx
+import { ImageResponse } from 'next/og';
+
+export const size = { width: 32, height: 32 };
+export const contentType = 'image/png';
+
+export default function Icon() {
+  return new ImageResponse(
+    (
+      <div
+        style={{
+          fontSize: 18,
+          background: '#1A237E',
+          width: '100%',
+          height: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: 'white',
+          borderRadius: 6,
+          fontWeight: 700,
+          fontFamily: 'sans-serif',
+        }}
+      >
+        S
+      </div>
+    ),
+    { ...size }
+  );
+}
+```
+
+### Apple touch icon (`v2/apps/web/app/apple-icon.tsx`)
+
+```tsx
+import { ImageResponse } from 'next/og';
+
+export const size = { width: 180, height: 180 };
+export const contentType = 'image/png';
+
+export default function AppleIcon() {
+  return new ImageResponse(
+    (
+      <div
+        style={{
+          fontSize: 96,
+          background: '#1A237E',
+          width: '100%',
+          height: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: 'white',
+          borderRadius: 32,
+          fontWeight: 700,
+          fontFamily: 'sans-serif',
+        }}
+      >
+        S
+      </div>
+    ),
+    { ...size }
+  );
+}
+```
+
+---
+
+## Part 7: Error and Loading pages
+
+### Global error boundary (`v2/apps/web/app/error.tsx`)
+
+```tsx
+'use client';
+
+export default function Error({ error, reset }: { error: Error; reset: () => void }) {
+  return (
+    <main className="section">
+      <div className="container">
+        <div className="empty-state">
+          <h2>Something went wrong</h2>
+          <p style={{ color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
+            {error.message || 'An unexpected error occurred. Please try again.'}
+          </p>
+          <button className="btn btn-primary" onClick={reset} style={{ marginTop: '1rem' }}>
+            Try Again
+          </button>
+        </div>
+      </div>
+    </main>
+  );
+}
+```
+
+### Global loading state (`v2/apps/web/app/loading.tsx`)
+
+```tsx
+export default function Loading() {
+  return (
+    <main className="section">
+      <div className="container" style={{ textAlign: 'center', padding: '4rem 0' }}>
+        <div className="skeleton" style={{ width: 200, height: 24, margin: '0 auto 1rem', borderRadius: 8 }} />
+        <div className="skeleton" style={{ width: 300, height: 16, margin: '0 auto', borderRadius: 8 }} />
+      </div>
+    </main>
+  );
+}
+```
+
+---
+
+## Success criteria
+
+1. `pnpm build` — zero errors
+2. **Homepage** view-source: contains `<title>SearchAnyCars — Buy Certified Used Cars in India`, Organization JSON-LD, WebSite JSON-LD with SearchAction
+3. **Car detail** `/car/1` view-source: contains dynamic `<title>` with car name + price, Vehicle JSON-LD with brand/model/price/mileage, BreadcrumbList JSON-LD, OG image tag
+4. **FAQ** view-source: contains FAQPage JSON-LD
+5. **Search** view-source: contains ItemList JSON-LD
+6. `/sitemap.xml` returns valid XML with static pages + dynamic car listings + brand URLs + city URLs
+7. `/robots.txt` blocks /admin/, /api/, auth pages. References sitemap.
+8. Favicon shows navy "S" in browser tab
+9. Private pages (login, bookings, wishlist, password pages) have `robots: noindex, nofollow`
+10. All public pages have canonical URL set
+11. OG tags present on homepage, car detail, search, splus pages
+12. `/searchanycars.com/` untouched
 
 ---
 
 ## What NOT to do
 
-- Do NOT "improve" or "modernize" any design — match v1 exactly
-- Do NOT remove CSS classes thinking they're unused — they might be used in components
-- Do NOT change v1's class naming convention
+- Do NOT add deployment configs (that's step 11)
+- Do NOT add analytics or tracking scripts
+- Do NOT modify backend API
 - Do NOT modify `/searchanycars.com/`
-- Do NOT add new features or pages
+- Do NOT modify page content or styling — only add metadata, JSON-LD, and the small utility files (sitemap, robots, icons, error, loading)

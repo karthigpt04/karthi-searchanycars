@@ -138,6 +138,21 @@ export function SearchClient() {
 
   return (
     <main>
+      {cars.length > 0 && (
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
+          '@context': 'https://schema.org',
+          '@type': 'ItemList',
+          name: 'Used Cars for Sale',
+          url: 'https://searchanycars.com/search',
+          numberOfItems: cars.length,
+          itemListElement: cars.slice(0, 10).map((car, index) => ({
+            '@type': 'ListItem',
+            position: index + 1,
+            url: `https://searchanycars.com/car/${car.id}`,
+            name: car.title,
+          })),
+        }) }} />
+      )}
       <div className="section-sm section-gray">
         <div className="container">
           <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>
