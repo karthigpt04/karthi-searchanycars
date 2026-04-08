@@ -164,12 +164,25 @@ export async function listingRoutes(app: FastifyInstance) {
         : undefined,
     };
 
-    const [created] = await db
-      .insert(listings)
-      .values(sanitized)
-      .returning();
+    try {
+      const [created] = await db
+        .insert(listings)
+        .values(sanitized)
+        .returning();
 
-    return reply.status(201).send(created);
+      return reply.status(201).send(created);
+    } catch (err: unknown) {
+      if (
+        err instanceof Error &&
+        err.message.includes("duplicate key value")
+      ) {
+        throw new AppError(
+          "A listing with this code already exists",
+          409
+        );
+      }
+      throw err;
+    }
   });
 
   // ─── PUT /:id — update listing (admin) ─────────────────────────
