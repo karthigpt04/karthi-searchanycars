@@ -9,6 +9,11 @@ import { PriceRangeSlider } from '../../src/components/PriceRangeSlider';
 
 type Listing = Record<string, unknown> & { id: number; title: string };
 
+const brandOptions = [
+  'BMW', 'Mercedes-Benz', 'Audi', 'Porsche', 'Jaguar', 'Land Rover',
+  'Volvo', 'Lexus', 'Rolls-Royce', 'Bentley', 'Mini', 'Toyota',
+  'Hyundai', 'Tata', 'Kia', 'Mahindra', 'Honda', 'Volkswagen', 'Škoda', 'Jeep',
+];
 const fuelTypes = ['Petrol', 'Diesel', 'Electric', 'Hybrid'];
 const bodyTypes = ['Luxury Sedan', 'Luxury SUV', 'SUV', 'Sedan', 'Coupe', 'Convertible'];
 const carTypes = [
@@ -51,8 +56,9 @@ export default function SplusNewClient() {
 
   const [search, setSearch] = useState('');
   const [brand, setBrand] = useState('');
-  const [fuelType, setFuelType] = useState('');
-  const [bodyType, setBodyType] = useState('');
+  const [brandSearch, setBrandSearch] = useState('');
+  const [selectedFuels, setSelectedFuels] = useState<string[]>([]);
+  const [selectedBodyTypes, setSelectedBodyTypes] = useState<string[]>([]);
   const [carType, setCarType] = useState('');
   const [priceMin, setPriceMin] = useState('');
   const [priceMax, setPriceMax] = useState('');
@@ -72,11 +78,12 @@ export default function SplusNewClient() {
     setLoading(true);
     setError('');
     const sortMap: Record<string, string> = { priceAsc: 'price_asc', priceDesc: 'price_desc', latest: 'newest' };
+    // API handles: search, brand, price range, sort, isNewCar flag
+    // Client-side handles: fuel, bodyType, carType (multi-select OR logic)
     api.getListings({
       isNewCar: 'true',
       search: search || undefined,
       brand: brand || undefined,
-      fuelType: fuelType || undefined,
       priceMin: priceMin || undefined,
       priceMax: priceMax || undefined,
       sortBy: sortMap[sortBy] || 'newest',
@@ -84,7 +91,15 @@ export default function SplusNewClient() {
     }).then((resp) => {
       const r = resp as Record<string, unknown>;
       let data = (Array.isArray(r.data) ? r.data : Array.isArray(r) ? r : []) as Listing[];
-      if (bodyType) data = data.filter((c) => c.body_style === bodyType || c.bodyStyle === bodyType || c.vehicle_type === bodyType || c.vehicleType === bodyType);
+      // Client-side multi-select filters — OR within each, AND between them
+      if (selectedFuels.length > 0) data = data.filter((c) => {
+        const val = (c.fuel_type ?? c.fuelType ?? '') as string;
+        return selectedFuels.includes(val);
+      });
+      if (selectedBodyTypes.length > 0) data = data.filter((c) => {
+        const val = (c.body_style ?? c.bodyStyle ?? c.vehicle_type ?? c.vehicleType ?? '') as string;
+        return selectedBodyTypes.includes(val);
+      });
       if (carType) data = data.filter((c) => c.new_car_type === carType || c.newCarType === carType);
       if (activeQuickTags.includes('factoryfresh')) data = data.filter((c) => ((c.total_km_driven ?? c.totalKmDriven ?? 0) as number) === 0);
       if (activeQuickTags.includes('fullwarranty')) data = data.filter((c) => c.warranty_available === true || c.warrantyAvailable === true || c.is_new_car === true || c.isNewCar === true);
@@ -93,7 +108,7 @@ export default function SplusNewClient() {
       setCars([]);
       setError('Failed to load listings. Please try again.');
     }).finally(() => setLoading(false));
-  }, [search, brand, fuelType, bodyType, carType, priceMin, priceMax, sortBy, activeQuickTags]);
+  }, [search, brand, selectedFuels, selectedBodyTypes, carType, priceMin, priceMax, sortBy, activeQuickTags]);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -101,7 +116,7 @@ export default function SplusNewClient() {
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [fetchCars]);
 
-  useEffect(() => { setDisplayCount(12); }, [search, brand, fuelType, bodyType, carType, priceMin, priceMax, activeQuickTags]);
+  useEffect(() => { setDisplayCount(12); }, [search, brand, selectedFuels, selectedBodyTypes, carType, priceMin, priceMax, activeQuickTags]);
 
   useEffect(() => {
     document.body.style.overflow = mobileFilterOpen ? 'hidden' : '';
@@ -109,7 +124,7 @@ export default function SplusNewClient() {
   }, [mobileFilterOpen]);
 
   const clearFilters = () => {
-    setSearch(''); setBrand(''); setFuelType(''); setBodyType(''); setCarType('');
+    setSearch(''); setBrand(''); setBrandSearch(''); setSelectedFuels([]); setSelectedBodyTypes([]); setCarType('');
     setPriceMin(''); setPriceMax(''); setActiveQuickTags([]); setSortBy('latest');
   };
 
@@ -121,7 +136,7 @@ export default function SplusNewClient() {
     setActiveQuickTags((prev) => prev.includes(key) ? prev.filter((t) => t !== key) : [...prev, key]);
   };
 
-  const activeFilterCount = [brand, fuelType, bodyType, carType, priceMin, priceMax].filter(Boolean).length;
+  const activeFilterCount = [brand, ...selectedFuels, ...selectedBodyTypes, carType, priceMin, priceMax].filter(Boolean).length;
   const displayedCars = cars.slice(0, displayCount);
 
   return (
@@ -238,19 +253,31 @@ export default function SplusNewClient() {
               {/* Brand */}
               <div className="spn-filter-section-item">
                 <button className="spn-filter-title" onClick={() => toggleSection('brand')} type="button" aria-expanded={openSections.brand}>
-                  Brand <span className={`spn-chevron ${openSections.brand ? 'open' : ''}`}>&#9660;</span>
+                  Brand {brand ? `(${brand})` : ''} <span className={`spn-chevron ${openSections.brand ? 'open' : ''}`}>&#9660;</span>
                 </button>
-                {openSections.brand && <input className="spn-filter-input" value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="e.g., BMW, Mercedes..." aria-label="Brand filter" />}
+                {openSections.brand && (
+                  <>
+                    <input className="spn-filter-input" value={brandSearch} onChange={(e) => setBrandSearch(e.target.value)} placeholder="Search brands..." aria-label="Search brands" />
+                    <div className="spn-filter-chips" style={{ maxHeight: 200, overflowY: 'auto' }}>
+                      {brandOptions
+                        .filter((b) => !brandSearch || b.toLowerCase().includes(brandSearch.toLowerCase()))
+                        .map((b) => (
+                          <button key={b} className={`spn-filter-chip ${brand === b ? 'active' : ''}`}
+                            onClick={() => { setBrand(brand === b ? '' : b); setBrandSearch(''); }} type="button">{b}</button>
+                        ))}
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* Fuel Type */}
               <div className="spn-filter-section-item">
                 <button className="spn-filter-title" onClick={() => toggleSection('fuel')} type="button" aria-expanded={openSections.fuel}>
-                  Fuel Type <span className={`spn-chevron ${openSections.fuel ? 'open' : ''}`}>&#9660;</span>
+                  Fuel Type {selectedFuels.length > 0 ? `(${selectedFuels.length})` : ''} <span className={`spn-chevron ${openSections.fuel ? 'open' : ''}`}>&#9660;</span>
                 </button>
                 {openSections.fuel && (
                   <div className="spn-filter-chips">
-                    {fuelTypes.map((f) => <button key={f} className={`spn-filter-chip ${fuelType === f ? 'active' : ''}`} onClick={() => setFuelType(fuelType === f ? '' : f)} type="button">{f}</button>)}
+                    {fuelTypes.map((f) => <button key={f} className={`spn-filter-chip ${selectedFuels.includes(f) ? 'active' : ''}`} onClick={() => setSelectedFuels((prev) => prev.includes(f) ? prev.filter((x) => x !== f) : [...prev, f])} type="button">{f}</button>)}
                   </div>
                 )}
               </div>
@@ -258,11 +285,11 @@ export default function SplusNewClient() {
               {/* Body Type */}
               <div className="spn-filter-section-item">
                 <button className="spn-filter-title" onClick={() => toggleSection('body')} type="button" aria-expanded={openSections.body}>
-                  Body Type <span className={`spn-chevron ${openSections.body ? 'open' : ''}`}>&#9660;</span>
+                  Body Type {selectedBodyTypes.length > 0 ? `(${selectedBodyTypes.length})` : ''} <span className={`spn-chevron ${openSections.body ? 'open' : ''}`}>&#9660;</span>
                 </button>
                 {openSections.body && (
                   <div className="spn-filter-chips">
-                    {bodyTypes.map((b) => <button key={b} className={`spn-filter-chip ${bodyType === b ? 'active' : ''}`} onClick={() => setBodyType(bodyType === b ? '' : b)} type="button">{b}</button>)}
+                    {bodyTypes.map((b) => <button key={b} className={`spn-filter-chip ${selectedBodyTypes.includes(b) ? 'active' : ''}`} onClick={() => setSelectedBodyTypes((prev) => prev.includes(b) ? prev.filter((x) => x !== b) : [...prev, b])} type="button">{b}</button>)}
                   </div>
                 )}
               </div>
@@ -284,8 +311,12 @@ export default function SplusNewClient() {
                   <div className="spn-active-filters">
                     {carType && <span className="spn-active-pill">{carType} <button onClick={() => setCarType('')} type="button">&#10005;</button></span>}
                     {brand && <span className="spn-active-pill">{brand} <button onClick={() => setBrand('')} type="button">&#10005;</button></span>}
-                    {fuelType && <span className="spn-active-pill">{fuelType} <button onClick={() => setFuelType('')} type="button">&#10005;</button></span>}
-                    {bodyType && <span className="spn-active-pill">{bodyType} <button onClick={() => setBodyType('')} type="button">&#10005;</button></span>}
+                    {selectedFuels.map((f) => (
+                      <span key={f} className="spn-active-pill">{f} <button onClick={() => setSelectedFuels((prev) => prev.filter((x) => x !== f))} type="button">&#10005;</button></span>
+                    ))}
+                    {selectedBodyTypes.map((b) => (
+                      <span key={b} className="spn-active-pill">{b} <button onClick={() => setSelectedBodyTypes((prev) => prev.filter((x) => x !== b))} type="button">&#10005;</button></span>
+                    ))}
                   </div>
                 )}
                 <div className="sort-pills sort-pills-dark">

@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { api } from '../lib/api';
 
@@ -37,21 +37,33 @@ export const useAuth = () => useContext(AuthContext);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const refreshPromiseRef = useRef<Promise<void> | null>(null);
 
   const refreshUser = useCallback(async () => {
-    try {
-      const data = (await api.getMe()) as { user: User };
-      setUser(data.user);
-    } catch {
+    // Deduplicate: if a refresh is already in-flight, piggyback on it
+    if (refreshPromiseRef.current) {
+      return refreshPromiseRef.current;
+    }
+
+    const doRefresh = async () => {
       try {
-        const data = (await api.refreshToken()) as { user: User };
+        const data = (await api.getMe()) as { user: User };
         setUser(data.user);
       } catch {
-        setUser(null);
+        try {
+          const data = (await api.refreshToken()) as { user: User };
+          setUser(data.user);
+        } catch {
+          setUser(null);
+        }
+      } finally {
+        setLoading(false);
+        refreshPromiseRef.current = null;
       }
-    } finally {
-      setLoading(false);
-    }
+    };
+
+    refreshPromiseRef.current = doRefresh();
+    return refreshPromiseRef.current;
   }, []);
 
   useEffect(() => {

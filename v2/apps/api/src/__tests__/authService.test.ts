@@ -21,50 +21,50 @@ const testUser = {
 describe("authService", () => {
   // --- Password hashing ---
 
-  describe("hashPassword", () => {
-    it("returns a bcrypt hash string", () => {
-      const hash = hashPassword("password123");
+  describe("hashPassword", { timeout: 15_000 }, () => {
+    it("returns a bcrypt hash string", async () => {
+      const hash = await hashPassword("password123");
       expect(hash).toMatch(/^\$2[aby]?\$/);
     });
 
-    it("produces different hashes for the same password (salted)", () => {
-      const h1 = hashPassword("same");
-      const h2 = hashPassword("same");
+    it("produces different hashes for the same password (salted)", async () => {
+      const h1 = await hashPassword("same");
+      const h2 = await hashPassword("same");
       expect(h1).not.toBe(h2);
     });
 
-    it("hash is not the same as the plaintext", () => {
-      const hash = hashPassword("mypass");
+    it("hash is not the same as the plaintext", async () => {
+      const hash = await hashPassword("mypass");
       expect(hash).not.toBe("mypass");
     });
   });
 
-  describe("verifyPassword", () => {
-    it("returns true for correct password", () => {
-      const hash = hashPassword("correct");
-      expect(verifyPassword("correct", hash)).toBe(true);
+  describe("verifyPassword", { timeout: 15_000 }, () => {
+    it("returns true for correct password", async () => {
+      const hash = await hashPassword("correct");
+      expect(await verifyPassword("correct", hash)).toBe(true);
     });
 
-    it("returns false for wrong password", () => {
-      const hash = hashPassword("correct");
-      expect(verifyPassword("wrong", hash)).toBe(false);
+    it("returns false for wrong password", async () => {
+      const hash = await hashPassword("correct");
+      expect(await verifyPassword("wrong", hash)).toBe(false);
     });
 
-    it("returns false for empty string against a hash", () => {
-      const hash = hashPassword("notempty");
-      expect(verifyPassword("", hash)).toBe(false);
+    it("returns false for empty string against a hash", async () => {
+      const hash = await hashPassword("notempty");
+      expect(await verifyPassword("", hash)).toBe(false);
     });
 
-    it("works with special characters", () => {
+    it("works with special characters", async () => {
       const pass = "p@$$w0rd!#%^&*()";
-      const hash = hashPassword(pass);
-      expect(verifyPassword(pass, hash)).toBe(true);
+      const hash = await hashPassword(pass);
+      expect(await verifyPassword(pass, hash)).toBe(true);
     });
 
-    it("works with unicode characters", () => {
+    it("works with unicode characters", async () => {
       const pass = "passwort-\u00fc\u00f6\u00e4";
-      const hash = hashPassword(pass);
-      expect(verifyPassword(pass, hash)).toBe(true);
+      const hash = await hashPassword(pass);
+      expect(await verifyPassword(pass, hash)).toBe(true);
     });
   });
 

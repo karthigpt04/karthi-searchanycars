@@ -213,7 +213,9 @@ describe('api.uploadListingImage', () => {
     expect(init.method).toBe('POST');
     expect(init.body).toBeInstanceOf(FormData);
     // Should NOT have Content-Type (browser sets it with boundary for FormData)
-    expect(init.headers).toBeUndefined();
+    // But should have CSRF header
+    expect(init.headers).toEqual({ 'x-csrf-protection': '1' });
+    expect(init.headers['Content-Type']).toBeUndefined();
   });
 
   it('throws on non-ok response', async () => {
@@ -473,11 +475,23 @@ describe('api.getCategories', () => {
 // Content-Type header is set by default
 // ---------------------------------------------------------------------------
 describe('request headers', () => {
-  it('includes Content-Type application/json by default', async () => {
+  it('includes Content-Type application/json when body is present', async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse({}));
+    await api.login('a@b.com', 'pass');
+    const [, init] = mockFetch.mock.calls[0];
+    // Headers is now a Headers instance after CSRF fix
+    const headers = init.headers;
+    const contentType = headers instanceof Headers ? headers.get('Content-Type') : headers['Content-Type'];
+    expect(contentType).toBe('application/json');
+  });
+
+  it('does not include Content-Type for GET requests without body', async () => {
     mockFetch.mockResolvedValueOnce(jsonResponse({}));
     await api.getSiteConfig();
     const [, init] = mockFetch.mock.calls[0];
-    expect(init.headers['Content-Type']).toBe('application/json');
+    const headers = init.headers;
+    const contentType = headers instanceof Headers ? headers.get('Content-Type') : headers?.['Content-Type'];
+    expect(contentType).toBeNull();
   });
 
   it('includes credentials: include', async () => {
@@ -485,5 +499,23 @@ describe('request headers', () => {
     await api.getSiteConfig();
     const [, init] = mockFetch.mock.calls[0];
     expect(init.credentials).toBe('include');
+  });
+
+  it('includes x-csrf-protection header on mutating requests', async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse({}));
+    await api.logout();
+    const [, init] = mockFetch.mock.calls[0];
+    const headers = init.headers;
+    const csrf = headers instanceof Headers ? headers.get('x-csrf-protection') : headers?.['x-csrf-protection'];
+    expect(csrf).toBe('1');
+  });
+
+  it('does not include x-csrf-protection on GET requests', async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse({}));
+    await api.getSiteConfig();
+    const [, init] = mockFetch.mock.calls[0];
+    const headers = init.headers;
+    const csrf = headers instanceof Headers ? headers.get('x-csrf-protection') : headers?.['x-csrf-protection'];
+    expect(csrf).toBeNull();
   });
 });

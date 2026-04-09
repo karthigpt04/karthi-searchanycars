@@ -15,6 +15,13 @@ const cityOptions = [
   'Ahmedabad', 'Jaipur', 'Lucknow', 'Kolkata', 'Chandigarh', 'Kochi',
   'Coimbatore', 'Indore', 'Nagpur', 'Surat', 'Vizag', 'Mysuru', 'Bhopal', 'Thiruvananthapuram',
 ];
+const brandOptions = [
+  'Maruti Suzuki', 'Hyundai', 'Tata', 'Honda', 'Kia', 'Mahindra',
+  'Toyota', 'Volkswagen', 'Škoda', 'BMW', 'Mercedes-Benz', 'Audi',
+  'Ford', 'Renault', 'Nissan', 'MG', 'Jeep', 'Volvo',
+  'Lexus', 'Porsche', 'Jaguar', 'Land Rover', 'Mini', 'Citroën',
+  'Isuzu', 'Mitsubishi', 'Fiat', 'Chevrolet', 'Rolls-Royce', 'Bentley',
+];
 const fuelTypes = ['Petrol', 'Diesel', 'CNG', 'Electric', 'Hybrid', 'LPG'];
 const transmissions = ['Manual', 'Automatic', 'AMT', 'CVT', 'DCT'];
 const bodyTypes = ['Hatchback', 'Sedan', 'SUV', 'MUV', 'Luxury Sedan', 'Luxury SUV', 'Coupe', 'Pickup'];
@@ -49,9 +56,19 @@ export function SearchClient() {
 
   const [search, setSearch] = useState(searchParams.get('search') || '');
   const [brand, setBrand] = useState(searchParams.get('brand') || '');
-  const [fuelType, setFuelType] = useState(searchParams.get('fuel_type') || '');
-  const [transmission, setTransmission] = useState(searchParams.get('transmission_type') || '');
-  const [bodyType, setBodyType] = useState(searchParams.get('body_style') || '');
+  const [brandSearch, setBrandSearch] = useState('');
+  const [selectedFuels, setSelectedFuels] = useState<string[]>(() => {
+    const param = searchParams.get('fuel_type') || '';
+    return param ? param.split(',').map((s) => s.trim()).filter(Boolean) : [];
+  });
+  const [selectedTransmissions, setSelectedTransmissions] = useState<string[]>(() => {
+    const param = searchParams.get('transmission_type') || '';
+    return param ? param.split(',').map((s) => s.trim()).filter(Boolean) : [];
+  });
+  const [selectedBodyTypes, setSelectedBodyTypes] = useState<string[]>(() => {
+    const param = searchParams.get('body_style') || '';
+    return param ? param.split(',').map((s) => s.trim()).filter(Boolean) : [];
+  });
   const [ownerType, setOwnerType] = useState(searchParams.get('ownership_type') || '');
   const [selectedCities, setSelectedCities] = useState<string[]>(() => {
     const param = searchParams.get('location_city') || '';
@@ -79,11 +96,11 @@ export function SearchClient() {
     setLoading(true);
     setError('');
     const sortMap: Record<string, string> = { priceAsc: 'price_asc', priceDesc: 'price_desc', latest: 'newest' };
+    // API handles: text search, brand, owner, city, price/year/km ranges, sort
+    // Client-side handles: fuelType, transmission, bodyType (multi-select OR logic)
     api.getListings({
       search: search || undefined,
       brand: brand || undefined,
-      fuelType: fuelType || undefined,
-      transmissionType: transmission || undefined,
       ownershipType: ownerType || undefined,
       locationCity: selectedCities.length > 0 ? selectedCities.join(',') : undefined,
       priceMin: priceMin || undefined,
@@ -96,7 +113,19 @@ export function SearchClient() {
     }).then((resp) => {
       const r = resp as Record<string, unknown>;
       let data = (Array.isArray(r.data) ? r.data : Array.isArray(r) ? r : []) as Listing[];
-      if (bodyType) data = data.filter((c) => c.body_style === bodyType || c.bodyStyle === bodyType || c.vehicle_type === bodyType || c.vehicleType === bodyType);
+      // Client-side multi-select filters — OR within each, AND between them
+      if (selectedFuels.length > 0) data = data.filter((c) => {
+        const val = (c.fuel_type ?? c.fuelType ?? '') as string;
+        return selectedFuels.includes(val);
+      });
+      if (selectedTransmissions.length > 0) data = data.filter((c) => {
+        const val = (c.transmission_type ?? c.transmissionType ?? '') as string;
+        return selectedTransmissions.includes(val);
+      });
+      if (selectedBodyTypes.length > 0) data = data.filter((c) => {
+        const val = (c.body_style ?? c.bodyStyle ?? c.vehicle_type ?? c.vehicleType ?? '') as string;
+        return selectedBodyTypes.includes(val);
+      });
       if (activeQuickTags.includes('lowkm')) data = data.filter((c) => ((c.total_km_driven ?? c.totalKmDriven ?? 0) as number) < 30000);
       if (activeQuickTags.includes('singleowner')) data = data.filter((c) => c.ownership_type === 'First' || c.ownershipType === 'First');
       setCars(data);
@@ -104,7 +133,7 @@ export function SearchClient() {
       setCars([]);
       setError('Failed to load listings. Please try again.');
     }).finally(() => setLoading(false));
-  }, [search, brand, fuelType, transmission, bodyType, ownerType, selectedCities, priceMin, priceMax, yearMin, yearMax, kmMax, sortBy, activeQuickTags]);
+  }, [search, brand, selectedFuels, selectedTransmissions, selectedBodyTypes, ownerType, selectedCities, priceMin, priceMax, yearMin, yearMax, kmMax, sortBy, activeQuickTags]);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -112,7 +141,7 @@ export function SearchClient() {
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [fetchCars]);
 
-  useEffect(() => { setDisplayCount(12); }, [search, brand, fuelType, transmission, bodyType, ownerType, selectedCities, priceMin, priceMax, yearMin, yearMax, kmMax, activeQuickTags]);
+  useEffect(() => { setDisplayCount(12); }, [search, brand, selectedFuels, selectedTransmissions, selectedBodyTypes, ownerType, selectedCities, priceMin, priceMax, yearMin, yearMax, kmMax, activeQuickTags]);
 
   useEffect(() => {
     document.body.style.overflow = mobileFilterOpen ? 'hidden' : '';
@@ -120,7 +149,7 @@ export function SearchClient() {
   }, [mobileFilterOpen]);
 
   const clearFilters = () => {
-    setSearch(''); setBrand(''); setFuelType(''); setTransmission(''); setBodyType('');
+    setSearch(''); setBrand(''); setSelectedFuels([]); setSelectedTransmissions([]); setSelectedBodyTypes([]);
     setOwnerType(''); setSelectedCities([]); setPriceMin(''); setPriceMax('');
     setYearMin(''); setYearMax(''); setKmMax(''); setActiveQuickTags([]); setSortBy('latest');
   };
@@ -133,7 +162,7 @@ export function SearchClient() {
     setActiveQuickTags((prev) => prev.includes(key) ? prev.filter((t) => t !== key) : [...prev, key]);
   };
 
-  const activeFilterCount = [brand, fuelType, transmission, bodyType, ownerType, ...selectedCities, priceMin, priceMax, yearMin, yearMax, kmMax].filter(Boolean).length;
+  const activeFilterCount = [brand, ...selectedFuels, ...selectedTransmissions, ...selectedBodyTypes, ownerType, ...selectedCities, priceMin, priceMax, yearMin, yearMax, kmMax].filter(Boolean).length;
   const displayedCars = cars.slice(0, displayCount);
 
   return (
@@ -218,19 +247,31 @@ export function SearchClient() {
               {/* Brand */}
               <div className="filter-section">
                 <button className="filter-section-title" onClick={() => toggleSection('brand')} type="button" aria-expanded={openSections.brand}>
-                  Brand <span className={`chevron ${openSections.brand ? 'open' : ''}`}>▼</span>
+                  Brand {brand ? `(${brand})` : ''} <span className={`chevron ${openSections.brand ? 'open' : ''}`}>▼</span>
                 </button>
-                {openSections.brand && <input className="filter-input" value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="e.g., Hyundai, Tata..." aria-label="Brand filter" />}
+                {openSections.brand && (
+                  <>
+                    <input className="filter-input" value={brandSearch} onChange={(e) => setBrandSearch(e.target.value)} placeholder="Search brands..." aria-label="Search brands" />
+                    <div className="filter-chips filter-chips-brand">
+                      {brandOptions
+                        .filter((b) => !brandSearch || b.toLowerCase().includes(brandSearch.toLowerCase()))
+                        .map((b) => (
+                          <button key={b} className={`filter-chip ${brand === b ? 'active' : ''}`}
+                            onClick={() => { setBrand(brand === b ? '' : b); setBrandSearch(''); }} type="button">{b}</button>
+                        ))}
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* Fuel Type */}
               <div className="filter-section">
                 <button className="filter-section-title" onClick={() => toggleSection('fuel')} type="button" aria-expanded={openSections.fuel}>
-                  Fuel Type <span className={`chevron ${openSections.fuel ? 'open' : ''}`}>▼</span>
+                  Fuel Type {selectedFuels.length > 0 ? `(${selectedFuels.length})` : ''} <span className={`chevron ${openSections.fuel ? 'open' : ''}`}>▼</span>
                 </button>
                 {openSections.fuel && (
                   <div className="filter-chips">
-                    {fuelTypes.map((f) => <button key={f} className={`filter-chip ${fuelType === f ? 'active' : ''}`} onClick={() => setFuelType(fuelType === f ? '' : f)} type="button">{f}</button>)}
+                    {fuelTypes.map((f) => <button key={f} className={`filter-chip ${selectedFuels.includes(f) ? 'active' : ''}`} onClick={() => setSelectedFuels((prev) => prev.includes(f) ? prev.filter((x) => x !== f) : [...prev, f])} type="button">{f}</button>)}
                   </div>
                 )}
               </div>
@@ -238,11 +279,11 @@ export function SearchClient() {
               {/* Transmission */}
               <div className="filter-section">
                 <button className="filter-section-title" onClick={() => toggleSection('transmission')} type="button" aria-expanded={openSections.transmission}>
-                  Transmission <span className={`chevron ${openSections.transmission ? 'open' : ''}`}>▼</span>
+                  Transmission {selectedTransmissions.length > 0 ? `(${selectedTransmissions.length})` : ''} <span className={`chevron ${openSections.transmission ? 'open' : ''}`}>▼</span>
                 </button>
                 {openSections.transmission && (
                   <div className="filter-chips">
-                    {transmissions.map((t) => <button key={t} className={`filter-chip ${transmission === t ? 'active' : ''}`} onClick={() => setTransmission(transmission === t ? '' : t)} type="button">{t}</button>)}
+                    {transmissions.map((t) => <button key={t} className={`filter-chip ${selectedTransmissions.includes(t) ? 'active' : ''}`} onClick={() => setSelectedTransmissions((prev) => prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t])} type="button">{t}</button>)}
                   </div>
                 )}
               </div>
@@ -250,11 +291,11 @@ export function SearchClient() {
               {/* Body Type */}
               <div className="filter-section">
                 <button className="filter-section-title" onClick={() => toggleSection('body')} type="button" aria-expanded={openSections.body}>
-                  Body Type <span className={`chevron ${openSections.body ? 'open' : ''}`}>▼</span>
+                  Body Type {selectedBodyTypes.length > 0 ? `(${selectedBodyTypes.length})` : ''} <span className={`chevron ${openSections.body ? 'open' : ''}`}>▼</span>
                 </button>
                 {openSections.body && (
                   <div className="filter-chips">
-                    {bodyTypes.map((b) => <button key={b} className={`filter-chip ${bodyType === b ? 'active' : ''}`} onClick={() => setBodyType(bodyType === b ? '' : b)} type="button">{b}</button>)}
+                    {bodyTypes.map((b) => <button key={b} className={`filter-chip ${selectedBodyTypes.includes(b) ? 'active' : ''}`} onClick={() => setSelectedBodyTypes((prev) => prev.includes(b) ? prev.filter((x) => x !== b) : [...prev, b])} type="button">{b}</button>)}
                   </div>
                 )}
               </div>
@@ -330,9 +371,15 @@ export function SearchClient() {
                 {activeFilterCount > 0 && (
                   <div className="active-filters">
                     {brand && <span className="active-filter-pill">{brand} <button onClick={() => setBrand('')} type="button">✕</button></span>}
-                    {fuelType && <span className="active-filter-pill">{fuelType} <button onClick={() => setFuelType('')} type="button">✕</button></span>}
-                    {transmission && <span className="active-filter-pill">{transmission} <button onClick={() => setTransmission('')} type="button">✕</button></span>}
-                    {bodyType && <span className="active-filter-pill">{bodyType} <button onClick={() => setBodyType('')} type="button">✕</button></span>}
+                    {selectedFuels.map((f) => (
+                      <span key={f} className="active-filter-pill">{f} <button onClick={() => setSelectedFuels((prev) => prev.filter((x) => x !== f))} type="button">✕</button></span>
+                    ))}
+                    {selectedTransmissions.map((t) => (
+                      <span key={t} className="active-filter-pill">{t} <button onClick={() => setSelectedTransmissions((prev) => prev.filter((x) => x !== t))} type="button">✕</button></span>
+                    ))}
+                    {selectedBodyTypes.map((b) => (
+                      <span key={b} className="active-filter-pill">{b} <button onClick={() => setSelectedBodyTypes((prev) => prev.filter((x) => x !== b))} type="button">✕</button></span>
+                    ))}
                     {selectedCities.map((c) => (
                       <span key={c} className="active-filter-pill">{c} <button onClick={() => setSelectedCities((prev) => prev.filter((x) => x !== c))} type="button">✕</button></span>
                     ))}

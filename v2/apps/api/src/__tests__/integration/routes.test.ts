@@ -74,6 +74,7 @@ vi.mock("../../services/sessionService.js", () => ({
   createSession: vi.fn(async () => {}),
   findSession: vi.fn(async () => null),
   deleteSession: vi.fn(async () => {}),
+  softDeleteSession: vi.fn(async () => {}),
   deleteAllUserSessions: vi.fn(async () => {}),
   cleanExpiredSessions: vi.fn(async () => {}),
 }));
@@ -113,11 +114,27 @@ function adminToken() {
 // ---------------------------------------------------------------------------
 
 let app: FastifyInstance;
+// Keep a reference to the raw inject (without CSRF header) for CSRF-specific tests
+let rawInject: FastifyInstance["inject"];
+
+const MUTATING = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 beforeAll(async () => {
   const { buildApp } = await import("../../app.js");
   app = await buildApp();
   await app.ready();
+
+  // Auto-add CSRF header on mutating requests so existing tests pass
+  rawInject = app.inject.bind(app);
+  app.inject = ((opts: Record<string, unknown>) => {
+    if (typeof opts === "object" && MUTATING.has(String(opts.method))) {
+      opts.headers = {
+        "x-csrf-protection": "1",
+        ...(opts.headers as Record<string, string>),
+      };
+    }
+    return rawInject(opts);
+  }) as typeof app.inject;
 });
 
 afterAll(async () => {
@@ -877,6 +894,60 @@ describe("Favorites routes", () => {
     });
     expect(res.statusCode).toBe(400);
   });
+
+  it("PUT /favorites returns 400 when ids array exceeds 200", async () => {
+    const token = userToken();
+    const ids = Array.from({ length: 201 }, (_, i) => i + 1);
+    const res = await app.inject({
+      method: "PUT",
+      url: "/api/v1/favorites",
+      headers: { authorization: `Bearer ${token}` },
+      payload: { ids },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it("PUT /favorites returns 400 for non-positive integers", async () => {
+    const token = userToken();
+    const res = await app.inject({
+      method: "PUT",
+      url: "/api/v1/favorites",
+      headers: { authorization: `Bearer ${token}` },
+      payload: { ids: [0, -1] },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it("PUT /favorites deduplicates ids", async () => {
+    const token = userToken();
+    mockDb.insert.mockImplementation(() => chainable([]));
+    mockDb.select.mockImplementation(() => chainable([{ listingId: 5 }]));
+
+    const res = await app.inject({
+      method: "PUT",
+      url: "/api/v1/favorites",
+      headers: { authorization: `Bearer ${token}` },
+      payload: { ids: [5, 5, 5] },
+    });
+    expect(res.statusCode).toBe(200);
+    // insert should be called once with a single-element array (deduplicated)
+    expect(mockDb.insert).toHaveBeenCalledTimes(1);
+  });
+
+  it("PUT /favorites handles empty ids array", async () => {
+    const token = userToken();
+    mockDb.select.mockImplementation(() => chainable([]));
+
+    const res = await app.inject({
+      method: "PUT",
+      url: "/api/v1/favorites",
+      headers: { authorization: `Bearer ${token}` },
+      payload: { ids: [] },
+    });
+    expect(res.statusCode).toBe(200);
+    // No insert should be called for empty array
+    expect(mockDb.insert).not.toHaveBeenCalled();
+  });
 });
 
 // ===========================================================================
@@ -1013,5 +1084,80 @@ describe("Admin user management", () => {
       payload: { name: "Updated" },
     });
     expect(res.statusCode).toBe(404);
+  });
+
+  // ===========================================================================
+  // Security headers
+  // ===========================================================================
+
+  describe("Security headers", () => {
+    it("sets X-Content-Type-Options: nosniff", async () => {
+      const res = await app.inject({ method: "GET", url: "/api/health" });
+      expect(res.headers["x-content-type-options"]).toBe("nosniff");
+    });
+
+    it("sets Content-Security-Policy with restrictive defaults", async () => {
+      const res = await app.inject({ method: "GET", url: "/api/health" });
+      const csp = res.headers["content-security-policy"];
+      expect(csp).toContain("default-src 'none'");
+      expect(csp).toContain("frame-ancestors 'none'");
+    });
+
+    it("sets X-Frame-Options: DENY", async () => {
+      const res = await app.inject({ method: "GET", url: "/api/health" });
+      expect(res.headers["x-frame-options"]).toBe("DENY");
+    });
+
+    it("removes X-Powered-By header", async () => {
+      const res = await app.inject({ method: "GET", url: "/api/health" });
+      expect(res.headers["x-powered-by"]).toBeUndefined();
+    });
+
+    it("sets Cross-Origin-Resource-Policy to cross-origin", async () => {
+      const res = await app.inject({ method: "GET", url: "/api/health" });
+      expect(res.headers["cross-origin-resource-policy"]).toBe("cross-origin");
+    });
+  });
+
+  // ===========================================================================
+  // CSRF protection
+  // ===========================================================================
+
+  describe("CSRF protection", () => {
+    it("rejects POST without x-csrf-protection header", async () => {
+      const res = await rawInject({
+        method: "POST",
+        url: "/api/v1/auth/login",
+        payload: { email: "a@b.com", password: "123456" },
+        headers: { "content-type": "application/json" },
+      });
+      expect(res.statusCode).toBe(403);
+      expect(res.json().error).toBe("CSRF validation failed");
+    });
+
+    it("rejects DELETE without x-csrf-protection header", async () => {
+      const res = await rawInject({
+        method: "DELETE",
+        url: "/api/v1/favorites/1",
+        headers: { authorization: `Bearer ${adminToken()}` },
+      });
+      expect(res.statusCode).toBe(403);
+    });
+
+    it("allows GET without x-csrf-protection header", async () => {
+      const res = await app.inject({ method: "GET", url: "/api/health" });
+      expect(res.statusCode).toBe(200);
+    });
+
+    it("allows POST with x-csrf-protection header", async () => {
+      // This goes through the wrapper which adds the header
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/v1/auth/login",
+        payload: { email: "a@b.com", password: "123456" },
+      });
+      // Should not be 403 (may be 401 due to bad creds, that's fine)
+      expect(res.statusCode).not.toBe(403);
+    });
   });
 });

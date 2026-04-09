@@ -1,9 +1,38 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
+// Singleton refresh promise — prevents thundering herd on 401
+let refreshPromise: Promise<Response> | null = null;
+
+function doRefresh(): Promise<boolean> {
+  if (!refreshPromise) {
+    refreshPromise = fetch(`${API_BASE}/api/v1/auth/refresh`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'x-csrf-protection': '1' },
+    });
+  }
+
+  const pending = refreshPromise;
+  return pending
+    .then((res) => res.ok)
+    .catch(() => false)
+    .finally(() => {
+      // Only clear if this is still the same promise (avoid clearing a newer one)
+      if (refreshPromise === pending) {
+        refreshPromise = null;
+      }
+    });
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = new Headers(init?.headers ?? {});
   if (init?.body !== undefined && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
+  }
+  // CSRF protection — custom header that HTML forms cannot set
+  const method = (init?.method || 'GET').toUpperCase();
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+    headers.set('x-csrf-protection', '1');
   }
 
   const res = await fetch(`${API_BASE}${path}`, {
@@ -11,6 +40,32 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     headers,
     ...init,
   });
+
+  // 401 interception — deduplicated refresh + retry
+  if (
+    res.status === 401 &&
+    !path.includes('/auth/refresh') &&
+    !path.includes('/auth/login')
+  ) {
+    const refreshed = await doRefresh();
+    if (refreshed) {
+      // Retry original request — browser sends updated cookies automatically
+      const retryRes = await fetch(`${API_BASE}${path}`, {
+        credentials: 'include',
+        headers,
+        ...init,
+      });
+      if (!retryRes.ok) {
+        const body = await retryRes.text();
+        throw new Error(body || `Request failed: ${retryRes.status}`);
+      }
+      if (retryRes.status === 204) return undefined as T;
+      return retryRes.json() as Promise<T>;
+    }
+    // Refresh failed — throw the original 401
+    const body = await res.text();
+    throw new Error(body || `Request failed: ${res.status}`);
+  }
 
   if (!res.ok) {
     const body = await res.text();
@@ -158,6 +213,7 @@ export const api = {
     const res = await fetch(`${API_BASE}/api/v1/uploads/image`, {
       credentials: 'include',
       method: 'POST',
+      headers: { 'x-csrf-protection': '1' },
       body: formData,
     });
     if (!res.ok) throw new Error(`Image upload failed: ${res.status}`);

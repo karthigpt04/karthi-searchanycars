@@ -79,37 +79,33 @@ export const CarCard = ({ car, isWishlisted = false, onToggleWishlist }: CarCard
 
   return (
     <article className="car-card">
-      <Link href={url} style={{ textDecoration: 'none', color: 'inherit' }}>
-        <div className="car-image-wrap">
+      <div className="car-image-wrap">
+        <Link href={url} style={{ textDecoration: 'none', color: 'inherit', display: 'block', width: '100%', height: '100%' }}>
           <img src={heroImage} alt={car.title} className="car-image" loading="lazy" />
-          <div className="car-badge-row">
-            {featured ? <span className="badge badge-coral">Featured</span> : null}
-            {fuelType === 'Electric' ? <span className="badge badge-green">EV</span> : null}
-            {fuelType === 'Hybrid' ? <span className="badge badge-green">Hybrid</span> : null}
-            {isSplus ? <span className="badge badge-splus">S-Plus</span> : null}
-            {isNewCar ? <span className="badge badge-spn">New Car</span> : null}
-          </div>
-          {images.length > 0 && (
-            <span className="car-image-count">📷 {images.length} photos</span>
-          )}
-          <button
-            className={`car-wishlist-btn ${isWishlisted ? 'active' : ''}`}
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onToggleWishlist?.(car.id);
-            }}
-            type="button"
-            aria-label={
-              isWishlisted
-                ? `Remove ${car.title} from wishlist`
-                : `Add ${car.title} to wishlist`
-            }
-          >
-            {isWishlisted ? '❤️' : '♡'}
-          </button>
+        </Link>
+        <div className="car-badge-row">
+          {featured ? <span className="badge badge-coral">Featured</span> : null}
+          {fuelType === 'Electric' ? <span className="badge badge-green">EV</span> : null}
+          {fuelType === 'Hybrid' ? <span className="badge badge-green">Hybrid</span> : null}
+          {isSplus ? <span className="badge badge-splus">S-Plus</span> : null}
+          {isNewCar ? <span className="badge badge-spn">New Car</span> : null}
         </div>
-      </Link>
+        {images.length > 0 && (
+          <span className="car-image-count">📷 {images.length} photos</span>
+        )}
+        <button
+          className={`car-wishlist-btn ${isWishlisted ? 'active' : ''}`}
+          onClick={() => onToggleWishlist?.(car.id)}
+          type="button"
+          aria-label={
+            isWishlisted
+              ? `Remove ${car.title} from wishlist`
+              : `Add ${car.title} to wishlist`
+          }
+        >
+          {isWishlisted ? '❤️' : '♡'}
+        </button>
+      </div>
 
       <div className="car-content">
         <Link href={url} style={{ textDecoration: 'none', color: 'inherit' }}>

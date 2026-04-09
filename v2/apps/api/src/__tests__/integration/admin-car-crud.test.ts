@@ -70,6 +70,7 @@ vi.mock("../../services/sessionService.js", () => ({
   createSession: vi.fn(async () => {}),
   findSession: vi.fn(async () => null),
   deleteSession: vi.fn(async () => {}),
+  softDeleteSession: vi.fn(async () => {}),
   deleteAllUserSessions: vi.fn(async () => {}),
   cleanExpiredSessions: vi.fn(async () => {}),
 }));
@@ -204,10 +205,24 @@ const CAR_PAYLOADS = [
 
 let app: FastifyInstance;
 
+const MUTATING = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
 beforeAll(async () => {
   const { buildApp } = await import("../../app.js");
   app = await buildApp();
   await app.ready();
+
+  // Auto-add CSRF header on mutating requests so existing tests pass
+  const origInject = app.inject.bind(app);
+  app.inject = ((opts: Record<string, unknown>) => {
+    if (typeof opts === "object" && MUTATING.has(String(opts.method))) {
+      opts.headers = {
+        "x-csrf-protection": "1",
+        ...(opts.headers as Record<string, string>),
+      };
+    }
+    return origInject(opts);
+  }) as typeof app.inject;
 });
 
 afterAll(async () => {

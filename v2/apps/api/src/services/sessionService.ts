@@ -37,6 +37,16 @@ export async function deleteSession(refreshToken: string): Promise<void> {
   await db.delete(sessions).where(eq(sessions.refreshToken, refreshToken));
 }
 
+export async function softDeleteSession(
+  refreshToken: string,
+  gracePeriodMs = 10_000,
+): Promise<void> {
+  await db
+    .update(sessions)
+    .set({ expiresAt: new Date(Date.now() + gracePeriodMs) })
+    .where(eq(sessions.refreshToken, refreshToken));
+}
+
 export async function deleteAllUserSessions(userId: number): Promise<void> {
   await db.delete(sessions).where(eq(sessions.userId, userId));
 }

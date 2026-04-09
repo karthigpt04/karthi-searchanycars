@@ -1,3 +1,17 @@
+const isProduction = process.env.NODE_ENV === "production";
+
+function requireSecret(envVar: string, devDefault: string): string {
+  const value = process.env[envVar];
+  if (value) return value;
+  if (isProduction) {
+    throw new Error(
+      `FATAL: Missing required environment variable ${envVar}. ` +
+        `The application cannot start in production without it.`,
+    );
+  }
+  return devDefault;
+}
+
 export const config = {
   port: parseInt(process.env.PORT || "4000", 10),
   host: process.env.HOST || "0.0.0.0",
@@ -11,14 +25,14 @@ export const config = {
   rateLimitTimeWindow: process.env.RATE_LIMIT_TIME_WINDOW || "1 minute",
 
   // JWT
-  jwtAccessSecret: process.env.JWT_ACCESS_SECRET || "dev-access-secret-change-me",
-  jwtRefreshSecret: process.env.JWT_REFRESH_SECRET || "dev-refresh-secret-change-me",
+  jwtAccessSecret: requireSecret("JWT_ACCESS_SECRET", "dev-access-secret-change-me"),
+  jwtRefreshSecret: requireSecret("JWT_REFRESH_SECRET", "dev-refresh-secret-change-me"),
   jwtAccessExpiry: process.env.JWT_ACCESS_EXPIRY || "15m",
   jwtRefreshExpiry: process.env.JWT_REFRESH_EXPIRY || "7d",
 
   // Cookies
-  cookieSecret: process.env.COOKIE_SECRET || "dev-cookie-secret-change-me",
-  cookieSecure: process.env.COOKIE_SECURE === "true",
+  cookieSecret: requireSecret("COOKIE_SECRET", "dev-cookie-secret-change-me"),
+  cookieSecure: process.env.COOKIE_SECURE === "true" || isProduction,
   cookieDomain: process.env.COOKIE_DOMAIN || "",
 
   // SMTP (optional — gracefully skipped if not set)

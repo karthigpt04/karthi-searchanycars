@@ -21,12 +21,12 @@ export interface RefreshPayload {
   type: "refresh";
 }
 
-export function hashPassword(plain: string): string {
-  return bcrypt.hashSync(plain, SALT_ROUNDS);
+export async function hashPassword(plain: string): Promise<string> {
+  return bcrypt.hash(plain, SALT_ROUNDS);
 }
 
-export function verifyPassword(plain: string, hash: string): boolean {
-  return bcrypt.compareSync(plain, hash);
+export async function verifyPassword(plain: string, hash: string): Promise<boolean> {
+  return bcrypt.compare(plain, hash);
 }
 
 export function generateAccessToken(user: {

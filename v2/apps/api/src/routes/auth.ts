@@ -22,6 +22,7 @@ import {
   createSession,
   findSession,
   deleteSession,
+  softDeleteSession,
   deleteAllUserSessions,
 } from "../services/sessionService.js";
 import { sendPasswordResetEmail } from "../services/emailService.js";
@@ -43,7 +44,7 @@ export async function authRoutes(app: FastifyInstance) {
       throw new AppError("Email already registered", 409);
     }
 
-    const hash = hashPassword(body.password);
+    const hash = await hashPassword(body.password);
     const [inserted] = await db
       .insert(users)
       .values({
@@ -91,7 +92,7 @@ export async function authRoutes(app: FastifyInstance) {
     if (!user || !user.passwordHash) {
       throw new AppError("Invalid email or password", 401);
     }
-    if (!verifyPassword(body.password, user.passwordHash)) {
+    if (!(await verifyPassword(body.password, user.passwordHash))) {
       throw new AppError("Invalid email or password", 401);
     }
 
@@ -154,8 +155,8 @@ export async function authRoutes(app: FastifyInstance) {
       throw new AppError("User not found", 401);
     }
 
-    // Rotate refresh token
-    await deleteSession(token);
+    // Rotate refresh token (soft-delete with grace period for concurrent requests)
+    await softDeleteSession(token, 10_000);
     const newAccessToken = generateAccessToken({
       id: user.id,
       email: user.email!,
@@ -291,7 +292,7 @@ export async function authRoutes(app: FastifyInstance) {
       );
     }
 
-    const hash = hashPassword(body.password);
+    const hash = await hashPassword(body.password);
     await db
       .update(users)
       .set({ passwordHash: hash, updatedAt: new Date() })
@@ -327,11 +328,11 @@ export async function authRoutes(app: FastifyInstance) {
       if (!user) {
         throw new AppError("User not found", 404);
       }
-      if (!user.passwordHash || !verifyPassword(body.currentPassword, user.passwordHash)) {
+      if (!user.passwordHash || !(await verifyPassword(body.currentPassword, user.passwordHash))) {
         throw new AppError("Current password is incorrect", 401);
       }
 
-      const hash = hashPassword(body.newPassword);
+      const hash = await hashPassword(body.newPassword);
       await db
         .update(users)
         .set({ passwordHash: hash, updatedAt: new Date() })
@@ -360,7 +361,7 @@ export async function authRoutes(app: FastifyInstance) {
         throw new AppError("Email already registered", 409);
       }
 
-      const hash = hashPassword(body.password);
+      const hash = await hashPassword(body.password);
       const [inserted] = await db
         .insert(users)
         .values({
@@ -447,7 +448,7 @@ export async function authRoutes(app: FastifyInstance) {
       if (name !== undefined) updates.name = name;
       if (role && ["admin", "user"].includes(role)) updates.role = role;
       if (password && password.length >= 6) {
-        updates.passwordHash = hashPassword(password);
+        updates.passwordHash = await hashPassword(password);
       }
 
       await db.update(users).set(updates).where(eq(users.id, userId));

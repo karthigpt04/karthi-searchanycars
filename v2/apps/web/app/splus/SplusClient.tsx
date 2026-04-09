@@ -14,6 +14,11 @@ const cityOptions = [
   'Ahmedabad', 'Jaipur', 'Lucknow', 'Kolkata', 'Chandigarh', 'Kochi',
   'Coimbatore', 'Indore', 'Nagpur', 'Surat', 'Vizag', 'Mysuru', 'Bhopal', 'Thiruvananthapuram',
 ];
+const brandOptions = [
+  'BMW', 'Mercedes-Benz', 'Audi', 'Porsche', 'Jaguar', 'Land Rover',
+  'Volvo', 'Lexus', 'Rolls-Royce', 'Bentley', 'Mini', 'Toyota',
+  'Hyundai', 'Tata', 'Kia', 'Mahindra', 'Honda', 'Volkswagen', 'Škoda', 'Jeep',
+];
 const fuelTypes = ['Petrol', 'Diesel', 'CNG', 'Electric', 'Hybrid', 'LPG'];
 const transmissions = ['Manual', 'Automatic', 'AMT', 'CVT', 'DCT'];
 const bodyTypes = ['Hatchback', 'Sedan', 'SUV', 'MUV', 'Luxury Sedan', 'Luxury SUV', 'Coupe', 'Pickup'];
@@ -48,9 +53,10 @@ export default function SplusClient() {
 
   const [search, setSearch] = useState('');
   const [brand, setBrand] = useState('');
-  const [fuelType, setFuelType] = useState('');
-  const [transmission, setTransmission] = useState('');
-  const [bodyType, setBodyType] = useState('');
+  const [brandSearch, setBrandSearch] = useState('');
+  const [selectedFuels, setSelectedFuels] = useState<string[]>([]);
+  const [selectedTransmissions, setSelectedTransmissions] = useState<string[]>([]);
+  const [selectedBodyTypes, setSelectedBodyTypes] = useState<string[]>([]);
   const [ownerType, setOwnerType] = useState('');
   const [selectedCities, setSelectedCities] = useState<string[]>([]);
   const [priceMin, setPriceMin] = useState('');
@@ -58,7 +64,7 @@ export default function SplusClient() {
   const [yearMin, setYearMin] = useState('');
   const [yearMax, setYearMax] = useState('');
   const [kmMax, setKmMax] = useState('');
-  const [color, setColor] = useState('');
+  const [selectedColors, setSelectedColors] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState('latest');
   const [activeQuickTags, setActiveQuickTags] = useState<string[]>([]);
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
@@ -76,12 +82,12 @@ export default function SplusClient() {
     setLoading(true);
     setError('');
     const sortMap: Record<string, string> = { priceAsc: 'price_asc', priceDesc: 'price_desc', latest: 'newest' };
+    // API handles: search, brand, owner, city, price/year/km ranges, sort, isSplus flag
+    // Client-side handles: fuel, transmission, bodyType, color (multi-select OR logic)
     api.getListings({
       isSplus: 'true',
       search: search || undefined,
       brand: brand || undefined,
-      fuelType: fuelType || undefined,
-      transmissionType: transmission || undefined,
       ownershipType: ownerType || undefined,
       locationCity: selectedCities.length > 0 ? selectedCities.join(',') : undefined,
       priceMin: priceMin || undefined,
@@ -94,17 +100,31 @@ export default function SplusClient() {
     }).then((resp) => {
       const r = resp as Record<string, unknown>;
       let data = (Array.isArray(r.data) ? r.data : Array.isArray(r) ? r : []) as Listing[];
-      if (bodyType) data = data.filter((c) => c.body_style === bodyType || c.bodyStyle === bodyType || c.vehicle_type === bodyType || c.vehicleType === bodyType);
-      if (color) data = data.filter((c) => ((c.exterior_color ?? c.exteriorColor ?? '') as string).toLowerCase().includes(color.toLowerCase()));
-      if (activeQuickTags.includes('lowkm')) data = data.filter((c) => ((c.total_km_driven ?? c.totalKmDriven ?? 0) as number) < 30000);
+      // Client-side multi-select filters — OR within each, AND between them
+      if (selectedFuels.length > 0) data = data.filter((c) => {
+        const val = (c.fuel_type ?? c.fuelType ?? '') as string;
+        return selectedFuels.includes(val);
+      });
+      if (selectedTransmissions.length > 0) data = data.filter((c) => {
+        const val = (c.transmission_type ?? c.transmissionType ?? '') as string;
+        return selectedTransmissions.includes(val);
+      });
+      if (selectedBodyTypes.length > 0) data = data.filter((c) => {
+        const val = (c.body_style ?? c.bodyStyle ?? c.vehicle_type ?? c.vehicleType ?? '') as string;
+        return selectedBodyTypes.includes(val);
+      });
+      if (selectedColors.length > 0) data = data.filter((c) => {
+        const val = ((c.exterior_color ?? c.exteriorColor ?? '') as string).toLowerCase();
+        return selectedColors.some((clr) => val.includes(clr.toLowerCase()));
+      });
+      if (activeQuickTags.includes('lowkm') || activeQuickTags.includes('under30k')) data = data.filter((c) => ((c.total_km_driven ?? c.totalKmDriven ?? 0) as number) < 30000);
       if (activeQuickTags.includes('singleowner')) data = data.filter((c) => c.ownership_type === 'First' || c.ownershipType === 'First');
-      if (activeQuickTags.includes('under30k')) data = data.filter((c) => ((c.total_km_driven ?? c.totalKmDriven ?? 0) as number) < 30000);
       setCars(data);
     }).catch(() => {
       setCars([]);
       setError('Failed to load listings. Please try again.');
     }).finally(() => setLoading(false));
-  }, [search, brand, fuelType, transmission, bodyType, ownerType, selectedCities, priceMin, priceMax, yearMin, yearMax, kmMax, color, sortBy, activeQuickTags]);
+  }, [search, brand, selectedFuels, selectedTransmissions, selectedBodyTypes, ownerType, selectedCities, priceMin, priceMax, yearMin, yearMax, kmMax, selectedColors, sortBy, activeQuickTags]);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -112,7 +132,7 @@ export default function SplusClient() {
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [fetchCars]);
 
-  useEffect(() => { setDisplayCount(12); }, [search, brand, fuelType, transmission, bodyType, ownerType, selectedCities, priceMin, priceMax, yearMin, yearMax, kmMax, color, activeQuickTags]);
+  useEffect(() => { setDisplayCount(12); }, [search, brand, selectedFuels, selectedTransmissions, selectedBodyTypes, ownerType, selectedCities, priceMin, priceMax, yearMin, yearMax, kmMax, selectedColors, activeQuickTags]);
 
   useEffect(() => {
     document.body.style.overflow = mobileFilterOpen ? 'hidden' : '';
@@ -120,9 +140,9 @@ export default function SplusClient() {
   }, [mobileFilterOpen]);
 
   const clearFilters = () => {
-    setSearch(''); setBrand(''); setFuelType(''); setTransmission(''); setBodyType('');
+    setSearch(''); setBrand(''); setBrandSearch(''); setSelectedFuels([]); setSelectedTransmissions([]); setSelectedBodyTypes([]);
     setOwnerType(''); setSelectedCities([]); setPriceMin(''); setPriceMax('');
-    setYearMin(''); setYearMax(''); setKmMax(''); setColor(''); setActiveQuickTags([]); setSortBy('latest');
+    setYearMin(''); setYearMax(''); setKmMax(''); setSelectedColors([]); setActiveQuickTags([]); setSortBy('latest');
   };
 
   const toggleCompare = (id: number) => {
@@ -133,7 +153,7 @@ export default function SplusClient() {
     setActiveQuickTags((prev) => prev.includes(key) ? prev.filter((t) => t !== key) : [...prev, key]);
   };
 
-  const activeFilterCount = [brand, fuelType, transmission, bodyType, ownerType, color, ...selectedCities, priceMin, priceMax, yearMin, yearMax, kmMax].filter(Boolean).length;
+  const activeFilterCount = [brand, ...selectedFuels, ...selectedTransmissions, ...selectedBodyTypes, ownerType, ...selectedColors, ...selectedCities, priceMin, priceMax, yearMin, yearMax, kmMax].filter(Boolean).length;
   const displayedCars = cars.slice(0, displayCount);
 
   return (
@@ -226,19 +246,31 @@ export default function SplusClient() {
               {/* Brand */}
               <div className="sp-filter-section">
                 <button className="sp-filter-title" onClick={() => toggleSection('brand')} type="button" aria-expanded={openSections.brand}>
-                  Brand <span className={`sp-chevron ${openSections.brand ? 'open' : ''}`}>&#9660;</span>
+                  Brand {brand ? `(${brand})` : ''} <span className={`sp-chevron ${openSections.brand ? 'open' : ''}`}>&#9660;</span>
                 </button>
-                {openSections.brand && <input className="sp-filter-input" value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="e.g., BMW, Mercedes..." aria-label="Brand filter" />}
+                {openSections.brand && (
+                  <>
+                    <input className="sp-filter-input" value={brandSearch} onChange={(e) => setBrandSearch(e.target.value)} placeholder="Search brands..." aria-label="Search brands" />
+                    <div className="sp-filter-chips sp-filter-chips-city">
+                      {brandOptions
+                        .filter((b) => !brandSearch || b.toLowerCase().includes(brandSearch.toLowerCase()))
+                        .map((b) => (
+                          <button key={b} className={`sp-filter-chip ${brand === b ? 'active' : ''}`}
+                            onClick={() => { setBrand(brand === b ? '' : b); setBrandSearch(''); }} type="button">{b}</button>
+                        ))}
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* Fuel Type */}
               <div className="sp-filter-section">
                 <button className="sp-filter-title" onClick={() => toggleSection('fuel')} type="button" aria-expanded={openSections.fuel}>
-                  Fuel Type <span className={`sp-chevron ${openSections.fuel ? 'open' : ''}`}>&#9660;</span>
+                  Fuel Type {selectedFuels.length > 0 ? `(${selectedFuels.length})` : ''} <span className={`sp-chevron ${openSections.fuel ? 'open' : ''}`}>&#9660;</span>
                 </button>
                 {openSections.fuel && (
                   <div className="sp-filter-chips">
-                    {fuelTypes.map((f) => <button key={f} className={`sp-filter-chip ${fuelType === f ? 'active' : ''}`} onClick={() => setFuelType(fuelType === f ? '' : f)} type="button">{f}</button>)}
+                    {fuelTypes.map((f) => <button key={f} className={`sp-filter-chip ${selectedFuels.includes(f) ? 'active' : ''}`} onClick={() => setSelectedFuels((prev) => prev.includes(f) ? prev.filter((x) => x !== f) : [...prev, f])} type="button">{f}</button>)}
                   </div>
                 )}
               </div>
@@ -246,11 +278,11 @@ export default function SplusClient() {
               {/* Transmission */}
               <div className="sp-filter-section">
                 <button className="sp-filter-title" onClick={() => toggleSection('transmission')} type="button" aria-expanded={openSections.transmission}>
-                  Transmission <span className={`sp-chevron ${openSections.transmission ? 'open' : ''}`}>&#9660;</span>
+                  Transmission {selectedTransmissions.length > 0 ? `(${selectedTransmissions.length})` : ''} <span className={`sp-chevron ${openSections.transmission ? 'open' : ''}`}>&#9660;</span>
                 </button>
                 {openSections.transmission && (
                   <div className="sp-filter-chips">
-                    {transmissions.map((t) => <button key={t} className={`sp-filter-chip ${transmission === t ? 'active' : ''}`} onClick={() => setTransmission(transmission === t ? '' : t)} type="button">{t}</button>)}
+                    {transmissions.map((t) => <button key={t} className={`sp-filter-chip ${selectedTransmissions.includes(t) ? 'active' : ''}`} onClick={() => setSelectedTransmissions((prev) => prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t])} type="button">{t}</button>)}
                   </div>
                 )}
               </div>
@@ -258,11 +290,11 @@ export default function SplusClient() {
               {/* Body Type */}
               <div className="sp-filter-section">
                 <button className="sp-filter-title" onClick={() => toggleSection('body')} type="button" aria-expanded={openSections.body}>
-                  Body Type <span className={`sp-chevron ${openSections.body ? 'open' : ''}`}>&#9660;</span>
+                  Body Type {selectedBodyTypes.length > 0 ? `(${selectedBodyTypes.length})` : ''} <span className={`sp-chevron ${openSections.body ? 'open' : ''}`}>&#9660;</span>
                 </button>
                 {openSections.body && (
                   <div className="sp-filter-chips">
-                    {bodyTypes.map((b) => <button key={b} className={`sp-filter-chip ${bodyType === b ? 'active' : ''}`} onClick={() => setBodyType(bodyType === b ? '' : b)} type="button">{b}</button>)}
+                    {bodyTypes.map((b) => <button key={b} className={`sp-filter-chip ${selectedBodyTypes.includes(b) ? 'active' : ''}`} onClick={() => setSelectedBodyTypes((prev) => prev.includes(b) ? prev.filter((x) => x !== b) : [...prev, b])} type="button">{b}</button>)}
                   </div>
                 )}
               </div>
@@ -325,11 +357,11 @@ export default function SplusClient() {
               {/* Color */}
               <div className="sp-filter-section">
                 <button className="sp-filter-title" onClick={() => toggleSection('color')} type="button" aria-expanded={openSections.color}>
-                  Exterior Color <span className={`sp-chevron ${openSections.color ? 'open' : ''}`}>&#9660;</span>
+                  Exterior Color {selectedColors.length > 0 ? `(${selectedColors.length})` : ''} <span className={`sp-chevron ${openSections.color ? 'open' : ''}`}>&#9660;</span>
                 </button>
                 {openSections.color && (
                   <div className="sp-filter-chips">
-                    {colors.map((c) => <button key={c} className={`sp-filter-chip ${color === c ? 'active' : ''}`} onClick={() => setColor(color === c ? '' : c)} type="button">{c}</button>)}
+                    {colors.map((c) => <button key={c} className={`sp-filter-chip ${selectedColors.includes(c) ? 'active' : ''}`} onClick={() => setSelectedColors((prev) => prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c])} type="button">{c}</button>)}
                   </div>
                 )}
               </div>
@@ -350,11 +382,19 @@ export default function SplusClient() {
                 {activeFilterCount > 0 && (
                   <div className="sp-active-filters">
                     {brand && <span className="sp-active-pill">{brand} <button onClick={() => setBrand('')} type="button">&#10005;</button></span>}
-                    {fuelType && <span className="sp-active-pill">{fuelType} <button onClick={() => setFuelType('')} type="button">&#10005;</button></span>}
-                    {transmission && <span className="sp-active-pill">{transmission} <button onClick={() => setTransmission('')} type="button">&#10005;</button></span>}
-                    {bodyType && <span className="sp-active-pill">{bodyType} <button onClick={() => setBodyType('')} type="button">&#10005;</button></span>}
+                    {selectedFuels.map((f) => (
+                      <span key={f} className="sp-active-pill">{f} <button onClick={() => setSelectedFuels((prev) => prev.filter((x) => x !== f))} type="button">&#10005;</button></span>
+                    ))}
+                    {selectedTransmissions.map((t) => (
+                      <span key={t} className="sp-active-pill">{t} <button onClick={() => setSelectedTransmissions((prev) => prev.filter((x) => x !== t))} type="button">&#10005;</button></span>
+                    ))}
+                    {selectedBodyTypes.map((b) => (
+                      <span key={b} className="sp-active-pill">{b} <button onClick={() => setSelectedBodyTypes((prev) => prev.filter((x) => x !== b))} type="button">&#10005;</button></span>
+                    ))}
                     {ownerType && <span className="sp-active-pill">{ownerType} Owner <button onClick={() => setOwnerType('')} type="button">&#10005;</button></span>}
-                    {color && <span className="sp-active-pill">{color} <button onClick={() => setColor('')} type="button">&#10005;</button></span>}
+                    {selectedColors.map((c) => (
+                      <span key={`color-${c}`} className="sp-active-pill">{c} <button onClick={() => setSelectedColors((prev) => prev.filter((x) => x !== c))} type="button">&#10005;</button></span>
+                    ))}
                     {selectedCities.map((c) => (
                       <span key={c} className="sp-active-pill">{c} <button onClick={() => setSelectedCities((prev) => prev.filter((x) => x !== c))} type="button">&#10005;</button></span>
                     ))}

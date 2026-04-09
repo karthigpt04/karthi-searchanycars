@@ -157,6 +157,9 @@ describe("config", () => {
 
     it("NODE_ENV=production sets isDev to false", async () => {
       process.env.NODE_ENV = "production";
+      process.env.JWT_ACCESS_SECRET = "prod-access";
+      process.env.JWT_REFRESH_SECRET = "prod-refresh";
+      process.env.COOKIE_SECRET = "prod-cookie";
       const config = await loadConfig();
       expect(config.isDev).toBe(false);
     });
@@ -207,6 +210,56 @@ describe("config", () => {
       process.env.PORT = "abc";
       const config = await loadConfig();
       expect(config.port).toBeNaN();
+    });
+  });
+
+  // --- Production secret validation ---
+
+  describe("production secret validation", () => {
+    it("throws when JWT_ACCESS_SECRET is missing in production", async () => {
+      process.env.NODE_ENV = "production";
+      delete process.env.JWT_ACCESS_SECRET;
+      process.env.JWT_REFRESH_SECRET = "prod-refresh";
+      process.env.COOKIE_SECRET = "prod-cookie";
+      await expect(loadConfig()).rejects.toThrow("JWT_ACCESS_SECRET");
+    });
+
+    it("throws when JWT_REFRESH_SECRET is missing in production", async () => {
+      process.env.NODE_ENV = "production";
+      process.env.JWT_ACCESS_SECRET = "prod-access";
+      delete process.env.JWT_REFRESH_SECRET;
+      process.env.COOKIE_SECRET = "prod-cookie";
+      await expect(loadConfig()).rejects.toThrow("JWT_REFRESH_SECRET");
+    });
+
+    it("throws when COOKIE_SECRET is missing in production", async () => {
+      process.env.NODE_ENV = "production";
+      process.env.JWT_ACCESS_SECRET = "prod-access";
+      process.env.JWT_REFRESH_SECRET = "prod-refresh";
+      delete process.env.COOKIE_SECRET;
+      await expect(loadConfig()).rejects.toThrow("COOKIE_SECRET");
+    });
+
+    it("does NOT throw when all secrets are provided in production", async () => {
+      process.env.NODE_ENV = "production";
+      process.env.JWT_ACCESS_SECRET = "prod-access";
+      process.env.JWT_REFRESH_SECRET = "prod-refresh";
+      process.env.COOKIE_SECRET = "prod-cookie";
+      const config = await loadConfig();
+      expect(config.jwtAccessSecret).toBe("prod-access");
+      expect(config.jwtRefreshSecret).toBe("prod-refresh");
+      expect(config.cookieSecret).toBe("prod-cookie");
+    });
+
+    it("uses dev defaults when NODE_ENV is not production", async () => {
+      process.env.NODE_ENV = "development";
+      delete process.env.JWT_ACCESS_SECRET;
+      delete process.env.JWT_REFRESH_SECRET;
+      delete process.env.COOKIE_SECRET;
+      const config = await loadConfig();
+      expect(config.jwtAccessSecret).toBe("dev-access-secret-change-me");
+      expect(config.jwtRefreshSecret).toBe("dev-refresh-secret-change-me");
+      expect(config.cookieSecret).toBe("dev-cookie-secret-change-me");
     });
   });
 });

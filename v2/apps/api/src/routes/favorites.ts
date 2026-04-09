@@ -5,8 +5,15 @@ import { db, userFavorites, listings } from "@searchanycars/db";
 import { requireAuth } from "../plugins/auth.js";
 import { AppError } from "../errors.js";
 
+const MAX_FAVORITES_SYNC = 200;
+
 const bulkSyncSchema = z.object({
-  ids: z.array(z.number().int().positive()),
+  ids: z
+    .array(z.number().int().positive())
+    .max(MAX_FAVORITES_SYNC, {
+      message: `Cannot sync more than ${MAX_FAVORITES_SYNC} favorites at once`,
+    })
+    .transform((arr) => [...new Set(arr)]),
 });
 
 export async function favoriteRoutes(app: FastifyInstance) {
@@ -72,14 +79,14 @@ export async function favoriteRoutes(app: FastifyInstance) {
   });
 
   // ─── PUT / — bulk sync (merge) ────────────────────────────────
-  app.put("/", async (request, reply) => {
+  app.put("/", { bodyLimit: 4096 }, async (request, reply) => {
     const { ids } = bulkSyncSchema.parse(request.body);
 
-    // Insert each with ON CONFLICT DO NOTHING
-    for (const listingId of ids) {
+    // Single batch insert instead of sequential loop
+    if (ids.length > 0) {
       await db
         .insert(userFavorites)
-        .values({ userId: request.user!.id, listingId })
+        .values(ids.map((listingId) => ({ userId: request.user!.id, listingId })))
         .onConflictDoNothing();
     }
 

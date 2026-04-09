@@ -18,7 +18,7 @@ export async function listingRoutes(app: FastifyInstance) {
   app.get("/", async (request, reply) => {
     const q = listingFilterSchema.parse(request.query);
     const page = q.page ?? 1;
-    const limit = q.limit ?? 20;
+    const limit = Math.min(q.limit ?? 20, 100);
     const offset = (page - 1) * limit;
 
     // Build WHERE conditions

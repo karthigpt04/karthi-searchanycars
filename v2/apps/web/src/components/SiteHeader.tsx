@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSiteConfig } from '../context/SiteConfigContext';
@@ -10,6 +10,8 @@ export const SiteHeader = () => {
   const { config } = useSiteConfig();
   const { user, isAdmin, logout } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
 
   useEffect(() => {
@@ -22,6 +24,16 @@ export const SiteHeader = () => {
       document.body.style.overflow = '';
     };
   }, [isOpen]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const isActive = (path: string) => {
     if (path === '/') return pathname === '/';
@@ -57,26 +69,47 @@ export const SiteHeader = () => {
 
         <div className="header-actions">
           {user ? (
-            <>
-              {isAdmin && (
-                <Link href="/admin" className="btn btn-ghost btn-sm">
-                  Admin
-                </Link>
-              )}
-              <Link href="/my-bookings" className="btn btn-ghost btn-sm">
-                My Bookings
-              </Link>
-              <Link href="/change-password" className="btn btn-ghost btn-sm">
-                Change Password
-              </Link>
+            <div className="user-menu" ref={userMenuRef}>
               <button
-                className="btn btn-ghost btn-sm"
-                onClick={logout}
+                className="user-menu-trigger"
                 type="button"
+                onClick={() => setUserMenuOpen((v) => !v)}
+                aria-expanded={userMenuOpen}
               >
-                Logout
+                <span className="user-menu-avatar">
+                  {user.name ? user.name.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase()}
+                </span>
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ opacity: 0.5 }}>
+                  <path d="M3 5L6 8L9 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
               </button>
-            </>
+              {userMenuOpen && (
+                <div className="user-menu-dropdown">
+                  <div className="user-menu-header">
+                    {user.name && <div className="user-menu-name">{user.name}</div>}
+                    <div className="user-menu-email">{user.email}</div>
+                  </div>
+                  {isAdmin && (
+                    <Link href="/admin" className="user-menu-item" onClick={() => setUserMenuOpen(false)}>
+                      Admin
+                    </Link>
+                  )}
+                  <Link href="/my-bookings" className="user-menu-item" onClick={() => setUserMenuOpen(false)}>
+                    My Bookings
+                  </Link>
+                  <Link href="/change-password" className="user-menu-item" onClick={() => setUserMenuOpen(false)}>
+                    Change Password
+                  </Link>
+                  <button
+                    className="user-menu-item user-menu-logout"
+                    onClick={() => { logout(); setUserMenuOpen(false); }}
+                    type="button"
+                  >
+                    Logout
+                  </button>
+                </div>
+              )}
+            </div>
           ) : (
             <Link href="/login" className="btn btn-outline btn-sm">
               Login

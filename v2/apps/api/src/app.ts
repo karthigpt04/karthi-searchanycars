@@ -6,6 +6,7 @@ import cookie from "@fastify/cookie";
 import rateLimit from "@fastify/rate-limit";
 import multipart from "@fastify/multipart";
 import fastifyStatic from "@fastify/static";
+import helmet from "@fastify/helmet";
 import { config } from "./config.js";
 import { healthPlugin } from "./plugins/health.js";
 import { authMiddleware } from "./plugins/auth.js";
@@ -19,6 +20,7 @@ import { favoriteRoutes } from "./routes/favorites.js";
 import { bookingRoutes } from "./routes/bookings.js";
 import { adminBookingRoutes } from "./routes/admin-bookings.js";
 import { globalErrorHandler } from "./errors.js";
+import { csrfProtection } from "./plugins/csrf.js";
 
 export async function buildApp() {
   const app = Fastify({
@@ -30,11 +32,34 @@ export async function buildApp() {
   // Global error handler
   app.setErrorHandler(globalErrorHandler);
 
+  // Security headers
+  await app.register(helmet, {
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'none'"],
+        frameAncestors: ["'none'"],
+      },
+    },
+    ...(config.isDev
+      ? { hsts: false }
+      : { hsts: { maxAge: 63072000, includeSubDomains: true, preload: true } }),
+    frameguard: { action: "deny" },
+    hidePoweredBy: true,
+    noSniff: true,
+    xssFilter: false,
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    crossOriginEmbedderPolicy: false,
+  });
+
   // CORS — credentials: true for cookies
   await app.register(cors, {
     origin: config.corsOrigin,
     credentials: true,
+    allowedHeaders: ["Content-Type", "Authorization", "x-csrf-protection"],
   });
+
+  // CSRF protection — require custom header on all mutating requests
+  await app.register(csrfProtection);
 
   // Cookies
   await app.register(cookie, {
