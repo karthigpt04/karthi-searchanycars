@@ -24,6 +24,37 @@ export const config = {
   ),
   rateLimitTimeWindow: process.env.RATE_LIMIT_TIME_WINDOW || "1 minute",
 
+  // ── Per-route auth rate limit tiers ──────────────────────────────
+  authRateLimit: {
+    /** Strict: login, register, reset-password */
+    strict: {
+      max: parseInt(
+        process.env.AUTH_RATE_LIMIT_STRICT_MAX ||
+          (process.env.NODE_ENV === "test" ? "5000" : isProduction ? "5" : "20"),
+        10
+      ),
+      timeWindow: process.env.AUTH_RATE_LIMIT_STRICT_WINDOW || "1 minute",
+    },
+    /** Tightest: forgot-password (triggers email sends) */
+    strictEmail: {
+      max: parseInt(
+        process.env.AUTH_RATE_LIMIT_STRICT_EMAIL_MAX ||
+          (process.env.NODE_ENV === "test" ? "5000" : isProduction ? "3" : "20"),
+        10
+      ),
+      timeWindow: process.env.AUTH_RATE_LIMIT_STRICT_EMAIL_WINDOW || "1 minute",
+    },
+    /** Moderate: change-password, refresh */
+    moderate: {
+      max: parseInt(
+        process.env.AUTH_RATE_LIMIT_MODERATE_MAX ||
+          (process.env.NODE_ENV === "test" ? "5000" : isProduction ? "10" : "50"),
+        10
+      ),
+      timeWindow: process.env.AUTH_RATE_LIMIT_MODERATE_WINDOW || "1 minute",
+    },
+  },
+
   // JWT
   jwtAccessSecret: requireSecret("JWT_ACCESS_SECRET", "dev-access-secret-change-me"),
   jwtRefreshSecret: requireSecret("JWT_REFRESH_SECRET", "dev-refresh-secret-change-me"),

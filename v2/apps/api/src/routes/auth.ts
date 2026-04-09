@@ -12,6 +12,7 @@ import {
 import {
   hashPassword,
   verifyPassword,
+  DUMMY_HASH,
   generateAccessToken,
   generateRefreshToken,
   verifyRefreshToken,
@@ -27,24 +28,31 @@ import {
 } from "../services/sessionService.js";
 import { sendPasswordResetEmail } from "../services/emailService.js";
 import { requireAuth, requireAdmin } from "../plugins/auth.js";
+import { config } from "../config.js";
 import { AppError } from "../errors.js";
 
 export async function authRoutes(app: FastifyInstance) {
   // ─── Register ───────────────────────────────────────────────────
-  app.post("/register", async (request, reply) => {
+  app.post("/register", {
+    config: { rateLimit: config.authRateLimit.strict },
+  }, async (request, reply) => {
     const body = registerSchema.parse(request.body);
 
-    const existing = await db
-      .select({ id: users.id })
-      .from(users)
-      .where(eq(users.email, body.email))
-      .limit(1);
+    // Run DB check and password hashing in parallel to prevent timing-based
+    // enumeration (both paths now include bcrypt work).
+    const [existing, hash] = await Promise.all([
+      db
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.email, body.email))
+        .limit(1),
+      hashPassword(body.password),
+    ]);
 
     if (existing.length > 0) {
       throw new AppError("Email already registered", 409);
     }
 
-    const hash = await hashPassword(body.password);
     const [inserted] = await db
       .insert(users)
       .values({
@@ -79,7 +87,9 @@ export async function authRoutes(app: FastifyInstance) {
   });
 
   // ─── Login ──────────────────────────────────────────────────────
-  app.post("/login", async (request, reply) => {
+  app.post("/login", {
+    config: { rateLimit: config.authRateLimit.strict },
+  }, async (request, reply) => {
     const body = loginSchema.parse(request.body);
 
     const rows = await db
@@ -89,10 +99,12 @@ export async function authRoutes(app: FastifyInstance) {
       .limit(1);
     const user = rows[0];
 
-    if (!user || !user.passwordHash) {
-      throw new AppError("Invalid email or password", 401);
-    }
-    if (!(await verifyPassword(body.password, user.passwordHash))) {
+    // Always run bcrypt.compare to prevent timing-based email enumeration.
+    // If user doesn't exist or has no password, compare against DUMMY_HASH.
+    const hashToVerify = user?.passwordHash || DUMMY_HASH;
+    const passwordValid = await verifyPassword(body.password, hashToVerify);
+
+    if (!user || !user.passwordHash || !passwordValid) {
       throw new AppError("Invalid email or password", 401);
     }
 
@@ -125,7 +137,9 @@ export async function authRoutes(app: FastifyInstance) {
   });
 
   // ─── Refresh token ──────────────────────────────────────────────
-  app.post("/refresh", async (request, reply) => {
+  app.post("/refresh", {
+    config: { rateLimit: config.authRateLimit.moderate },
+  }, async (request, reply) => {
     // Try cookie first, then body
     const token =
       request.cookies?.refresh_token ||
@@ -221,53 +235,25 @@ export async function authRoutes(app: FastifyInstance) {
   });
 
   // ─── Forgot password ───────────────────────────────────────────
-  app.post("/forgot-password", async (request, reply) => {
+  app.post("/forgot-password", {
+    config: { rateLimit: config.authRateLimit.strictEmail },
+  }, async (request, reply) => {
     const body = forgotPasswordSchema.parse(request.body);
 
-    const rows = await db
-      .select({ id: users.id, email: users.email })
-      .from(users)
-      .where(eq(users.email, body.email))
-      .limit(1);
-    const user = rows[0];
+    // Send the response immediately to prevent timing-based email enumeration.
+    // The actual DB lookup and email send happen in the background.
+    const successMessage = "If that email exists, a reset link has been sent.";
 
-    // Always return success to prevent email enumeration
-    if (!user) {
-      return reply.send({
-        message: "If that email exists, a reset link has been sent.",
-      });
-    }
+    // Fire background processing — do NOT await
+    processForgotPassword(body.email, request.log).catch(() => {});
 
-    // Invalidate existing tokens
-    await db
-      .update(passwordResetTokens)
-      .set({ used: true })
-      .where(eq(passwordResetTokens.userId, user.id));
-
-    // Generate secure token
-    const token = crypto.randomBytes(32).toString("hex");
-    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
-    await db
-      .insert(passwordResetTokens)
-      .values({ userId: user.id, token, expiresAt });
-
-    try {
-      await sendPasswordResetEmail(user.email!, token);
-    } catch (err) {
-      request.log.error(err, "Failed to send password reset email");
-      throw new AppError(
-        "Failed to send email. Please try again later.",
-        500
-      );
-    }
-
-    return reply.send({
-      message: "If that email exists, a reset link has been sent.",
-    });
+    return reply.send({ message: successMessage });
   });
 
   // ─── Reset password ────────────────────────────────────────────
-  app.post("/reset-password", async (request, reply) => {
+  app.post("/reset-password", {
+    config: { rateLimit: config.authRateLimit.strict },
+  }, async (request, reply) => {
     const body = resetPasswordSchema.parse(request.body);
 
     const rows = await db
@@ -314,7 +300,7 @@ export async function authRoutes(app: FastifyInstance) {
   // ─── Change password ───────────────────────────────────────────
   app.post(
     "/change-password",
-    { preHandler: [requireAuth] },
+    { preHandler: [requireAuth], config: { rateLimit: config.authRateLimit.moderate } },
     async (request, reply) => {
       const body = changePasswordSchema.parse(request.body);
 
@@ -328,7 +314,10 @@ export async function authRoutes(app: FastifyInstance) {
       if (!user) {
         throw new AppError("User not found", 404);
       }
-      if (!user.passwordHash || !(await verifyPassword(body.currentPassword, user.passwordHash))) {
+      // Use DUMMY_HASH when passwordHash is null to prevent timing side-channel
+      const currentHashToVerify = user.passwordHash || DUMMY_HASH;
+      const currentPasswordValid = await verifyPassword(body.currentPassword, currentHashToVerify);
+      if (!user.passwordHash || !currentPasswordValid) {
         throw new AppError("Current password is incorrect", 401);
       }
 
@@ -351,17 +340,20 @@ export async function authRoutes(app: FastifyInstance) {
       const roleInput = (request.body as { role?: string }).role;
       const role = roleInput === "admin" ? "admin" : "user";
 
-      const existing = await db
-        .select({ id: users.id })
-        .from(users)
-        .where(eq(users.email, body.email))
-        .limit(1);
+      // Run DB check and password hashing in parallel to prevent timing side-channel
+      const [existing, hash] = await Promise.all([
+        db
+          .select({ id: users.id })
+          .from(users)
+          .where(eq(users.email, body.email))
+          .limit(1),
+        hashPassword(body.password),
+      ]);
 
       if (existing.length > 0) {
         throw new AppError("Email already registered", 409);
       }
 
-      const hash = await hashPassword(body.password);
       const [inserted] = await db
         .insert(users)
         .values({
@@ -467,4 +459,41 @@ export async function authRoutes(app: FastifyInstance) {
       return reply.send({ user: updated });
     }
   );
+}
+
+/**
+ * Background processor for forgot-password requests.
+ * Runs after the HTTP response is already sent, so timing cannot leak user existence.
+ */
+async function processForgotPassword(
+  email: string,
+  log: { error: (obj: unknown, msg: string) => void }
+): Promise<void> {
+  try {
+    const rows = await db
+      .select({ id: users.id, email: users.email })
+      .from(users)
+      .where(eq(users.email, email))
+      .limit(1);
+    const user = rows[0];
+
+    if (!user) return;
+
+    // Invalidate existing tokens
+    await db
+      .update(passwordResetTokens)
+      .set({ used: true })
+      .where(eq(passwordResetTokens.userId, user.id));
+
+    // Generate secure token
+    const token = crypto.randomBytes(32).toString("hex");
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+    await db
+      .insert(passwordResetTokens)
+      .values({ userId: user.id, token, expiresAt });
+
+    await sendPasswordResetEmail(user.email!, token);
+  } catch (err) {
+    log.error(err, "Background forgot-password processing failed");
+  }
 }

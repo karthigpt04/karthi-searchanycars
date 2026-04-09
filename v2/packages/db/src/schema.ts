@@ -155,6 +155,15 @@ export const listings = pgTable(
       "gin",
       sql`to_tsvector('english', coalesce(title, '') || ' ' || coalesce(brand, '') || ' ' || coalesce(model, '') || ' ' || coalesce(location_city, ''))`
     ),
+    // ── Indexes added for ISSUE #10 ──
+    index("idx_listings_model_year").on(t.modelYear),
+    index("idx_listings_created_at").on(t.createdAt),
+    index("idx_listings_new_car")
+      .on(t.isNewCar)
+      .where(sql`is_new_car = true`),
+    index("idx_listings_fuel_type").on(t.fuelType),
+    index("idx_listings_transmission_type").on(t.transmissionType),
+    index("idx_listings_body_style").on(t.bodyStyle),
   ]
 );
 
@@ -201,7 +210,10 @@ export const sessions = pgTable("sessions", {
   ipAddress: varchar("ip_address", { length: 45 }),
   userAgent: text("user_agent"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (t) => [
+  index("idx_sessions_user_id").on(t.userId),
+  index("idx_sessions_expires_at").on(t.expiresAt),
+]);
 
 export const sessionsRelations = relations(sessions, ({ one }) => ({
   user: one(users, {
@@ -220,7 +232,9 @@ export const passwordResetTokens = pgTable("password_reset_tokens", {
   expiresAt: timestamp("expires_at").notNull(),
   used: boolean("used").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (t) => [
+  index("idx_password_reset_tokens_user_id").on(t.userId),
+]);
 
 export const passwordResetTokensRelations = relations(
   passwordResetTokens,
@@ -245,7 +259,10 @@ export const userFavorites = pgTable(
       .references(() => listings.id, { onDelete: "cascade" }),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
-  (t) => [uniqueIndex("user_favorites_user_listing_idx").on(t.userId, t.listingId)]
+  (t) => [
+    uniqueIndex("user_favorites_user_listing_idx").on(t.userId, t.listingId),
+    index("idx_user_favorites_user_created").on(t.userId, t.createdAt),
+  ]
 );
 
 export const userFavoritesRelations = relations(userFavorites, ({ one }) => ({
@@ -281,7 +298,10 @@ export const testDriveBookings = pgTable("test_drive_bookings", {
   status: varchar("status", { length: 20 }).notNull().default("pending"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
+}, (t) => [
+  index("idx_bookings_user_id_created").on(t.userId, t.createdAt),
+  index("idx_bookings_listing_id").on(t.listingId),
+]);
 
 export const testDriveBookingsRelations = relations(
   testDriveBookings,

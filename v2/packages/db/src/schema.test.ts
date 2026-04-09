@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { getTableName, getTableColumns } from 'drizzle-orm';
+import { getTableConfig } from 'drizzle-orm/pg-core';
 import {
   categories,
   categoriesRelations,
@@ -676,5 +677,91 @@ describe('Column SQL name mapping', () => {
 
   it('categories.vehicleType maps to SQL column "vehicle_type"', () => {
     expect((col(categories, 'vehicleType') as any).name).toBe('vehicle_type');
+  });
+});
+
+// ─── Index configuration ──────────────────────────────────────────
+describe('Index configuration', () => {
+  function indexNames(table: any): string[] {
+    return getTableConfig(table).indexes.map((idx: any) => idx.config.name);
+  }
+
+  describe('listings indexes', () => {
+    const names = () => indexNames(listings);
+
+    it('has all 14 indexes', () => {
+      expect(names()).toHaveLength(14);
+    });
+
+    it.each([
+      'idx_listings_brand',
+      'idx_listings_location_city',
+      'idx_listings_listing_status',
+      'idx_listings_price',
+      'idx_listings_category',
+      'idx_listings_featured',
+      'idx_listings_splus',
+      'idx_listings_search',
+      'idx_listings_model_year',
+      'idx_listings_created_at',
+      'idx_listings_new_car',
+      'idx_listings_fuel_type',
+      'idx_listings_transmission_type',
+      'idx_listings_body_style',
+    ])('has %s index', (name) => {
+      expect(names()).toContain(name);
+    });
+  });
+
+  describe('sessions indexes', () => {
+    it('has idx_sessions_user_id', () => {
+      expect(indexNames(sessions)).toContain('idx_sessions_user_id');
+    });
+
+    it('has idx_sessions_expires_at', () => {
+      expect(indexNames(sessions)).toContain('idx_sessions_expires_at');
+    });
+
+    it('has 2 indexes total', () => {
+      expect(indexNames(sessions)).toHaveLength(2);
+    });
+  });
+
+  describe('password_reset_tokens indexes', () => {
+    it('has idx_password_reset_tokens_user_id', () => {
+      expect(indexNames(passwordResetTokens)).toContain('idx_password_reset_tokens_user_id');
+    });
+
+    it('has 1 index total', () => {
+      expect(indexNames(passwordResetTokens)).toHaveLength(1);
+    });
+  });
+
+  describe('user_favorites indexes', () => {
+    it('has user_favorites_user_listing_idx unique index', () => {
+      expect(indexNames(userFavorites)).toContain('user_favorites_user_listing_idx');
+    });
+
+    it('has idx_user_favorites_user_created', () => {
+      expect(indexNames(userFavorites)).toContain('idx_user_favorites_user_created');
+    });
+
+    it('has 2 indexes total', () => {
+      expect(indexNames(userFavorites)).toHaveLength(2);
+    });
+  });
+
+  describe('test_drive_bookings indexes', () => {
+    it('has idx_bookings_user_id_created composite index', () => {
+      expect(indexNames(testDriveBookings)).toContain('idx_bookings_user_id_created');
+    });
+
+    it('has idx_bookings_listing_id', () => {
+      expect(indexNames(testDriveBookings)).toContain('idx_bookings_listing_id');
+    });
+
+    it('has 2 indexes total', () => {
+      expect(indexNames(testDriveBookings)).toHaveLength(2);
+    });
   });
 });

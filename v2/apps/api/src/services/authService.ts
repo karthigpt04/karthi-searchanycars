@@ -5,6 +5,26 @@ import { config } from "../config.js";
 
 const SALT_ROUNDS = 12;
 
+/**
+ * Pre-computed bcrypt hash for timing-attack mitigation.
+ * When a user is not found (or has no passwordHash), we still run
+ * bcrypt.compare against this dummy hash so that response time is
+ * indistinguishable from a real password check.
+ *
+ * Generated with SALT_ROUNDS = 12. If you change SALT_ROUNDS, regenerate:
+ *   node -e "require('bcryptjs').hash('dummy', 12, (_, h) => console.log(h))"
+ */
+export const DUMMY_HASH =
+  "$2b$12$ivrxeHO3VC5k4V6dFGZF2O.dbxUuwSNlo8VxXOk8f/9FGOqtwTq6G";
+
+// Validate DUMMY_HASH cost factor matches SALT_ROUNDS at module load
+const _dummyCost = parseInt(DUMMY_HASH.split("$")[2], 10);
+if (_dummyCost !== SALT_ROUNDS) {
+  throw new Error(
+    `DUMMY_HASH cost factor (${_dummyCost}) does not match SALT_ROUNDS (${SALT_ROUNDS}). Regenerate DUMMY_HASH.`
+  );
+}
+
 // Access: 15 minutes, Refresh: 7 days (in seconds)
 const ACCESS_EXPIRY_SECONDS = 15 * 60;
 const REFRESH_EXPIRY_SECONDS = 7 * 24 * 60 * 60;

@@ -275,4 +275,25 @@ describe("authService", () => {
       );
     });
   });
+
+  // --- DUMMY_HASH (timing-attack mitigation) ---
+
+  describe("DUMMY_HASH", () => {
+    it("is a valid bcrypt hash string", async () => {
+      const { DUMMY_HASH } = await import("../services/authService.js");
+      expect(DUMMY_HASH).toMatch(/^\$2[aby]?\$\d{2}\$/);
+    });
+
+    it("has cost factor matching SALT_ROUNDS (12)", async () => {
+      const { DUMMY_HASH } = await import("../services/authService.js");
+      const cost = parseInt(DUMMY_HASH.split("$")[2], 10);
+      expect(cost).toBe(12);
+    });
+
+    it("verifyPassword works against DUMMY_HASH without throwing", async () => {
+      const { DUMMY_HASH } = await import("../services/authService.js");
+      const result = await verifyPassword("any-password", DUMMY_HASH);
+      expect(result).toBe(false);
+    });
+  });
 });

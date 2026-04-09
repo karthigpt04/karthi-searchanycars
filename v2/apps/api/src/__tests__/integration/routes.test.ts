@@ -95,6 +95,7 @@ vi.mock("../../services/uploadService.js", () => ({
 // ---------------------------------------------------------------------------
 
 import { generateAccessToken } from "../../services/authService.js";
+import { DUMMY_HASH } from "../../services/authService.js";
 
 function userToken(overrides: Partial<{ id: number; email: string; role: string; name: string }> = {}) {
   return generateAccessToken({
@@ -1159,5 +1160,80 @@ describe("Admin user management", () => {
       // Should not be 403 (may be 401 due to bad creds, that's fine)
       expect(res.statusCode).not.toBe(403);
     });
+  });
+});
+
+// ===========================================================================
+// Timing attack mitigation tests (ISSUE #8)
+// ===========================================================================
+
+describe("Timing attack mitigation", () => {
+  it("POST /login returns 401 for non-existent user (bcrypt still runs)", async () => {
+    // Mock: no user found
+    mockDb.select.mockImplementation(() => chainable([]));
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/login",
+      payload: { email: "ghost@test.com", password: "secret123" },
+    });
+    expect(res.statusCode).toBe(401);
+    expect(res.json().message).toBe("Invalid email or password");
+  });
+
+  it("POST /login returns 401 for user with no passwordHash (bcrypt still runs)", async () => {
+    // Mock: user exists but has no passwordHash (OAuth-only)
+    mockDb.select.mockImplementation(() =>
+      chainable([{ id: 1, email: "oauth@test.com", passwordHash: null, role: "user", name: "OAuth User" }])
+    );
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/login",
+      payload: { email: "oauth@test.com", password: "secret123" },
+    });
+    expect(res.statusCode).toBe(401);
+    expect(res.json().message).toBe("Invalid email or password");
+  });
+
+  it("POST /forgot-password returns identical response for existing and non-existing email", async () => {
+    // Non-existent user
+    mockDb.select.mockImplementation(() => chainable([]));
+    const res1 = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/forgot-password",
+      payload: { email: "nobody@test.com" },
+    });
+    expect(res1.statusCode).toBe(200);
+
+    // Existent user
+    mockDb.select.mockImplementation(() =>
+      chainable([{ id: 1, email: "exists@test.com" }])
+    );
+    mockDb.update.mockImplementation(() => chainable([]));
+    mockDb.insert.mockImplementation(() => chainable([]));
+
+    const res2 = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/forgot-password",
+      payload: { email: "exists@test.com" },
+    });
+    expect(res2.statusCode).toBe(200);
+
+    // Both responses must have identical structure
+    expect(res1.json().message).toBe(res2.json().message);
+    expect(res1.json().message).toBe("If that email exists, a reset link has been sent.");
+  });
+
+  it("POST /register with existing email still returns 409 (timing equalized via Promise.all)", async () => {
+    mockDb.select.mockImplementation(() => chainable([{ id: 1 }]));
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/register",
+      payload: { email: "dup@test.com", password: "secret123", name: "Dup" },
+    });
+    expect(res.statusCode).toBe(409);
+    expect(res.json().message).toBe("Email already registered");
   });
 });
