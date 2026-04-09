@@ -55,8 +55,8 @@ export async function buildApp() {
 
   // Rate limiting
   await app.register(rateLimit, {
-    max: config.isDev ? 200 : 100,
-    timeWindow: "1 minute",
+    max: config.rateLimitMax,
+    timeWindow: config.rateLimitTimeWindow,
   });
 
   // Auth middleware (decorates request.user)

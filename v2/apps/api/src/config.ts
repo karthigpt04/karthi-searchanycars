@@ -3,6 +3,12 @@ export const config = {
   host: process.env.HOST || "0.0.0.0",
   corsOrigin: (process.env.CORS_ORIGIN || "http://localhost:3000").split(",").map(s => s.trim()),
   isDev: process.env.NODE_ENV !== "production",
+  rateLimitMax: parseInt(
+    process.env.RATE_LIMIT_MAX ||
+      (process.env.NODE_ENV === "test" ? "5000" : process.env.NODE_ENV !== "production" ? "200" : "100"),
+    10
+  ),
+  rateLimitTimeWindow: process.env.RATE_LIMIT_TIME_WINDOW || "1 minute",
 
   // JWT
   jwtAccessSecret: process.env.JWT_ACCESS_SECRET || "dev-access-secret-change-me",
