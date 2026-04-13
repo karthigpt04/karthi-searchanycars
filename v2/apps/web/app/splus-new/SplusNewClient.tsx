@@ -93,16 +93,16 @@ export default function SplusNewClient() {
       let data = (Array.isArray(r.data) ? r.data : Array.isArray(r) ? r : []) as Listing[];
       // Client-side multi-select filters — OR within each, AND between them
       if (selectedFuels.length > 0) data = data.filter((c) => {
-        const val = (c.fuel_type ?? c.fuelType ?? '') as string;
+        const val = (c.fuelType ?? '') as string;
         return selectedFuels.includes(val);
       });
       if (selectedBodyTypes.length > 0) data = data.filter((c) => {
-        const val = (c.body_style ?? c.bodyStyle ?? c.vehicle_type ?? c.vehicleType ?? '') as string;
+        const val = (c.bodyStyle ?? c.vehicleType ?? '') as string;
         return selectedBodyTypes.includes(val);
       });
-      if (carType) data = data.filter((c) => c.new_car_type === carType || c.newCarType === carType);
-      if (activeQuickTags.includes('factoryfresh')) data = data.filter((c) => ((c.total_km_driven ?? c.totalKmDriven ?? 0) as number) === 0);
-      if (activeQuickTags.includes('fullwarranty')) data = data.filter((c) => c.warranty_available === true || c.warrantyAvailable === true || c.is_new_car === true || c.isNewCar === true);
+      if (carType) data = data.filter((c) => c.newCarType === carType);
+      if (activeQuickTags.includes('factoryfresh')) data = data.filter((c) => ((c.totalKmDriven ?? 0) as number) === 0);
+      if (activeQuickTags.includes('fullwarranty')) data = data.filter((c) => c.warrantyAvailable === true || c.isNewCar === true);
       setCars(data);
     }).catch(() => {
       setCars([]);

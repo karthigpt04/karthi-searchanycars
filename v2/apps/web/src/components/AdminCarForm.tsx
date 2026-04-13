@@ -21,7 +21,7 @@ interface ListingPayload {
   images: string[]; additionalNotes: string; specs: Record<string, unknown>;
 }
 
-type Category = { id: number; name: string; vehicle_type?: string; slug?: string };
+type Category = { id: number; name: string; vehicleType?: string; slug?: string };
 
 const emptyPayload: ListingPayload = {
   categoryId: null, listingCode: '', title: '', brand: '', model: '', variant: '',
@@ -90,50 +90,50 @@ export function AdminCarForm({ listingId }: { listingId?: number }) {
           const listing = await api.getListingById(listingId) as Record<string, unknown>;
           if (cancelled) return;
           setForm({
-            categoryId: listing.category_id as number | null,
-            listingCode: listing.listing_code as string,
+            categoryId: listing.categoryId as number | null,
+            listingCode: listing.listingCode as string,
             title: listing.title as string,
             brand: listing.brand as string,
             model: listing.model as string,
             variant: (listing.variant ?? '') as string,
-            modelYear: listing.model_year as number,
-            registrationYear: listing.registration_year as number,
-            vehicleType: (listing.vehicle_type ?? '') as string,
-            bodyStyle: (listing.body_style ?? '') as string,
-            exteriorColor: (listing.exterior_color ?? '') as string,
-            interiorColor: (listing.interior_color ?? '') as string,
-            listingPriceInr: listing.listing_price_inr as number,
+            modelYear: listing.modelYear as number,
+            registrationYear: listing.registrationYear as number,
+            vehicleType: (listing.vehicleType ?? '') as string,
+            bodyStyle: (listing.bodyStyle ?? '') as string,
+            exteriorColor: (listing.exteriorColor ?? '') as string,
+            interiorColor: (listing.interiorColor ?? '') as string,
+            listingPriceInr: listing.listingPriceInr as number,
             negotiable: Boolean(listing.negotiable),
-            estimatedMarketValueInr: listing.estimated_market_value_inr as number | null,
-            ownershipType: (listing.ownership_type ?? 'First') as string,
-            sellerType: (listing.seller_type ?? 'Dealer') as string,
-            registrationState: (listing.registration_state ?? '') as string,
-            registrationCity: (listing.registration_city ?? '') as string,
-            totalKmDriven: (listing.total_km_driven ?? 0) as number,
-            mileageKmpl: listing.mileage_kmpl as number | null,
-            engineType: (listing.engine_type ?? '') as string,
-            engineCapacityCc: listing.engine_capacity_cc as number | null,
-            powerBhp: listing.power_bhp as number | null,
-            transmissionType: (listing.transmission_type ?? 'Automatic') as string,
-            fuelType: (listing.fuel_type ?? 'Petrol') as string,
-            batteryCapacityKwh: listing.battery_capacity_kwh as number | null,
-            overallConditionRating: (listing.overall_condition_rating ?? 8) as number,
-            serviceHistoryAvailable: Boolean(listing.service_history_available),
-            airbagsCount: (listing.airbags_count ?? 2) as number,
-            infotainmentScreenSize: (listing.infotainment_screen_size ?? '8') as string,
-            locationCity: (listing.location_city ?? '') as string,
-            locationState: (listing.location_state ?? '') as string,
-            dealerRating: listing.dealer_rating as number | null,
-            inspectionStatus: (listing.inspection_status ?? 'Pending') as string,
-            inspectionScore: listing.inspection_score as number | null,
-            listingStatus: listing.listing_status as string,
-            featuredListing: Boolean(listing.featured_listing),
-            isSplus: Boolean(listing.is_splus),
-            isNewCar: Boolean(listing.is_new_car),
-            newCarType: (listing.new_car_type ?? '') as string,
-            promotionTier: (listing.promotion_tier ?? 'Standard') as string,
+            estimatedMarketValueInr: listing.estimatedMarketValueInr as number | null,
+            ownershipType: (listing.ownershipType ?? 'First') as string,
+            sellerType: (listing.sellerType ?? 'Dealer') as string,
+            registrationState: (listing.registrationState ?? '') as string,
+            registrationCity: (listing.registrationCity ?? '') as string,
+            totalKmDriven: (listing.totalKmDriven ?? 0) as number,
+            mileageKmpl: listing.mileageKmpl as number | null,
+            engineType: (listing.engineType ?? '') as string,
+            engineCapacityCc: listing.engineCapacityCc as number | null,
+            powerBhp: listing.powerBhp as number | null,
+            transmissionType: (listing.transmissionType ?? 'Automatic') as string,
+            fuelType: (listing.fuelType ?? 'Petrol') as string,
+            batteryCapacityKwh: listing.batteryCapacityKwh as number | null,
+            overallConditionRating: (listing.overallConditionRating ?? 8) as number,
+            serviceHistoryAvailable: Boolean(listing.serviceHistoryAvailable),
+            airbagsCount: (listing.airbagsCount ?? 2) as number,
+            infotainmentScreenSize: (listing.infotainmentScreenSize ?? '8') as string,
+            locationCity: (listing.locationCity ?? '') as string,
+            locationState: (listing.locationState ?? '') as string,
+            dealerRating: listing.dealerRating as number | null,
+            inspectionStatus: (listing.inspectionStatus ?? 'Pending') as string,
+            inspectionScore: listing.inspectionScore as number | null,
+            listingStatus: listing.listingStatus as string,
+            featuredListing: Boolean(listing.featuredListing),
+            isSplus: Boolean(listing.isSplus),
+            isNewCar: Boolean(listing.isNewCar),
+            newCarType: (listing.newCarType ?? '') as string,
+            promotionTier: (listing.promotionTier ?? 'Standard') as string,
             images: (listing.images ?? []) as string[],
-            additionalNotes: (listing.additional_notes ?? '') as string,
+            additionalNotes: (listing.additionalNotes ?? '') as string,
             specs: (listing.specs ?? {}) as Record<string, unknown>,
           });
           setAutoTitle(false);
@@ -167,8 +167,8 @@ export function AdminCarForm({ listingId }: { listingId?: number }) {
     if (!form.categoryId) return;
     const cat = categories.find((c) => c.id === form.categoryId);
     if (cat) {
-      set('vehicleType', cat.vehicle_type ?? '');
-      set('bodyStyle', cat.vehicle_type ?? '');
+      set('vehicleType', cat.vehicleType ?? '');
+      set('bodyStyle', cat.vehicleType ?? '');
     }
   }, [form.categoryId, categories]);
 

@@ -11,12 +11,7 @@ import {
 } from '../../../src/utils/format';
 import { useWishlist } from '../../../src/context/WishlistContext';
 
-type Listing = Record<string, unknown> & { id: number; title: string };
-
-function g(car: Listing, ...keys: string[]): unknown {
-  for (const k of keys) { if (car[k] !== undefined && car[k] !== null) return car[k]; }
-  return null;
-}
+type Listing = Record<string, unknown> & { id: number; title: string; images?: string[]; brand?: string; model?: string; variant?: string; };
 
 export function CarDetailClient({ listing, similarCars }: { listing: Listing | null; similarCars: Listing[] }) {
   const [selectedImage, setSelectedImage] = useState(0);
@@ -49,28 +44,28 @@ export function CarDetailClient({ listing, similarCars }: { listing: Listing | n
   }
 
   const car = listing;
-  const price = (g(car, 'listing_price_inr', 'listingPriceInr') ?? 0) as number;
+  const price = (car.listingPriceInr as number | undefined) ?? 0;
   const images = (car.images as string[] | undefined)?.length ? car.images as string[] : [PLACEHOLDER_CAR_IMAGE];
-  const fuelType = g(car, 'fuel_type', 'fuelType') as string | null;
-  const transmissionType = g(car, 'transmission_type', 'transmissionType') as string | null;
-  const ownershipType = g(car, 'ownership_type', 'ownershipType') as string | null;
-  const locationCity = g(car, 'location_city', 'locationCity') as string | null;
-  const modelYear = g(car, 'model_year', 'modelYear') as number | null;
-  const regYear = g(car, 'registration_year', 'registrationYear') as number | null;
-  const kmDriven = (g(car, 'total_km_driven', 'totalKmDriven') ?? 0) as number;
-  const regState = g(car, 'registration_state', 'registrationState') as string | null;
-  const color = g(car, 'exterior_color', 'exteriorColor') as string | null;
-  const mileage = g(car, 'mileage_kmpl', 'mileageKmpl') as number | null;
-  const condRating = g(car, 'overall_condition_rating', 'overallConditionRating') as number | null;
-  const inspScore = (g(car, 'inspection_score', 'inspectionScore') ?? 0) as number;
-  const inspStatus = g(car, 'inspection_status', 'inspectionStatus') as string | null;
-  const engineType = g(car, 'engine_type', 'engineType') as string | null;
-  const engineCc = g(car, 'engine_capacity_cc', 'engineCapacityCc') as number | null;
-  const powerBhp = g(car, 'power_bhp', 'powerBhp') as number | null;
-  const airbags = g(car, 'airbags_count', 'airbagsCount') as number | null;
-  const screen = g(car, 'infotainment_screen_size', 'infotainmentScreenSize') as string | null;
-  const viewsCount = (g(car, 'views_count', 'viewsCount') ?? 0) as number;
-  const favsCount = (g(car, 'favorites_count', 'favoritesCount') ?? 0) as number;
+  const fuelType = (car.fuelType as string | null) ?? null;
+  const transmissionType = (car.transmissionType as string | null) ?? null;
+  const ownershipType = (car.ownershipType as string | null) ?? null;
+  const locationCity = (car.locationCity as string | null) ?? null;
+  const modelYear = (car.modelYear as number | null) ?? null;
+  const regYear = (car.registrationYear as number | null) ?? null;
+  const kmDriven = (car.totalKmDriven as number | undefined) ?? 0;
+  const regState = (car.registrationState as string | null) ?? null;
+  const color = (car.exteriorColor as string | null) ?? null;
+  const mileage = (car.mileageKmpl as number | null) ?? null;
+  const condRating = (car.overallConditionRating as number | null) ?? null;
+  const inspScore = (car.inspectionScore as number | undefined) ?? 0;
+  const inspStatus = (car.inspectionStatus as string | null) ?? null;
+  const engineType = (car.engineType as string | null) ?? null;
+  const engineCc = (car.engineCapacityCc as number | null) ?? null;
+  const powerBhp = (car.powerBhp as number | null) ?? null;
+  const airbags = (car.airbagsCount as number | null) ?? null;
+  const screen = (car.infotainmentScreenSize as string | null) ?? null;
+  const viewsCount = (car.viewsCount as number | undefined) ?? 0;
+  const favsCount = (car.favoritesCount as number | undefined) ?? 0;
 
   const minSwipeDistance = 50;
   const onTouchStart = (e: React.TouchEvent) => { setTouchEnd(null); setTouchStart(e.targetTouches[0].clientX); };

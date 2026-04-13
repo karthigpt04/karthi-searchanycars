@@ -102,23 +102,23 @@ export default function SplusClient() {
       let data = (Array.isArray(r.data) ? r.data : Array.isArray(r) ? r : []) as Listing[];
       // Client-side multi-select filters — OR within each, AND between them
       if (selectedFuels.length > 0) data = data.filter((c) => {
-        const val = (c.fuel_type ?? c.fuelType ?? '') as string;
+        const val = (c.fuelType ?? '') as string;
         return selectedFuels.includes(val);
       });
       if (selectedTransmissions.length > 0) data = data.filter((c) => {
-        const val = (c.transmission_type ?? c.transmissionType ?? '') as string;
+        const val = (c.transmissionType ?? '') as string;
         return selectedTransmissions.includes(val);
       });
       if (selectedBodyTypes.length > 0) data = data.filter((c) => {
-        const val = (c.body_style ?? c.bodyStyle ?? c.vehicle_type ?? c.vehicleType ?? '') as string;
+        const val = (c.bodyStyle ?? c.vehicleType ?? '') as string;
         return selectedBodyTypes.includes(val);
       });
       if (selectedColors.length > 0) data = data.filter((c) => {
-        const val = ((c.exterior_color ?? c.exteriorColor ?? '') as string).toLowerCase();
+        const val = ((c.exteriorColor ?? '') as string).toLowerCase();
         return selectedColors.some((clr) => val.includes(clr.toLowerCase()));
       });
-      if (activeQuickTags.includes('lowkm') || activeQuickTags.includes('under30k')) data = data.filter((c) => ((c.total_km_driven ?? c.totalKmDriven ?? 0) as number) < 30000);
-      if (activeQuickTags.includes('singleowner')) data = data.filter((c) => c.ownership_type === 'First' || c.ownershipType === 'First');
+      if (activeQuickTags.includes('lowkm') || activeQuickTags.includes('under30k')) data = data.filter((c) => ((c.totalKmDriven ?? 0) as number) < 30000);
+      if (activeQuickTags.includes('singleowner')) data = data.filter((c) => c.ownershipType === 'First');
       setCars(data);
     }).catch(() => {
       setCars([]);

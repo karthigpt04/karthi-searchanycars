@@ -7,18 +7,18 @@ import { formatINR, formatKM, PLACEHOLDER_CAR_IMAGE, carUrl } from '../../src/ut
 
 type Listing = Record<string, unknown> & {
   id: number; title: string; brand: string; model: string;
-  listing_code: string; listing_price_inr: number; listing_status: string;
-  fuel_type?: string; transmission_type?: string; total_km_driven?: number;
-  location_city?: string; images?: string[]; featured_listing?: boolean;
-  is_splus?: boolean; inspection_score?: number; ownership_type?: string;
-  views_count?: number; lead_count?: number; slug?: string;
+  listingCode: string; listingPriceInr: number; listingStatus: string;
+  fuelType?: string; transmissionType?: string; totalKmDriven?: number;
+  locationCity?: string; images?: string[]; featuredListing?: boolean;
+  isSplus?: boolean; inspectionScore?: number; ownershipType?: string;
+  viewsCount?: number; leadCount?: number; slug?: string;
 };
 
 type Booking = Record<string, unknown> & {
-  id: number; listing_id: number; name: string; phone: string; email?: string;
-  preferred_date?: string; preferred_time?: string; location_preference?: string;
-  status: string; notes?: string; created_at: string;
-  listing_title?: string; listing?: { title: string; id: number };
+  id: number; listingId: number; name: string; phone: string; email?: string;
+  preferredDate?: string; preferredTime?: string; locationPreference?: string;
+  status: string; notes?: string; createdAt: string;
+  carTitle?: string; listing?: { title: string; id: number };
   user?: { name: string; email: string };
 };
 
@@ -95,14 +95,14 @@ export default function AdminPage() {
     const matchSearch = !search ||
       car.title.toLowerCase().includes(search.toLowerCase()) ||
       car.brand.toLowerCase().includes(search.toLowerCase()) ||
-      car.listing_code.toLowerCase().includes(search.toLowerCase()) ||
-      (car.location_city ?? '').toLowerCase().includes(search.toLowerCase());
-    const matchStatus = !statusFilter || car.listing_status === statusFilter;
+      car.listingCode.toLowerCase().includes(search.toLowerCase()) ||
+      (car.locationCity ?? '').toLowerCase().includes(search.toLowerCase());
+    const matchStatus = !statusFilter || car.listingStatus === statusFilter;
     return matchSearch && matchStatus;
   });
 
   const statusCounts = statuses.reduce((acc, s) => {
-    acc[s] = listings.filter((l) => l.listing_status === s).length;
+    acc[s] = listings.filter((l) => l.listingStatus === s).length;
     return acc;
   }, {} as Record<string, number>);
 
@@ -167,11 +167,11 @@ export default function AdminPage() {
                   <span className="adm-stat-label">Sold</span>
                 </div>
                 <div className="adm-stat-card">
-                  <span className="adm-stat-value">{listings.filter((l) => l.featured_listing).length}</span>
+                  <span className="adm-stat-value">{listings.filter((l) => l.featuredListing).length}</span>
                   <span className="adm-stat-label">Featured</span>
                 </div>
                 <div className="adm-stat-card" style={{ borderColor: '#D4AF37' }}>
-                  <span className="adm-stat-value">{listings.filter((l) => l.is_splus).length}</span>
+                  <span className="adm-stat-value">{listings.filter((l) => l.isSplus).length}</span>
                   <span className="adm-stat-label">S-Plus</span>
                 </div>
               </div>
@@ -254,33 +254,33 @@ export default function AdminPage() {
                     <span className="adm-td" style={{ flex: 2 }}>
                       <div className="adm-row-title">{car.title}</div>
                       <div className="adm-row-meta">
-                        {car.listing_code} &middot; {car.brand} {car.model} &middot;{' '}
-                        {car.fuel_type ?? '\u2014'} &middot; {car.transmission_type ?? '\u2014'} &middot;{' '}
-                        {formatKM(car.total_km_driven ?? 0)}
+                        {car.listingCode} &middot; {car.brand} {car.model} &middot;{' '}
+                        {car.fuelType ?? '\u2014'} &middot; {car.transmissionType ?? '\u2014'} &middot;{' '}
+                        {formatKM(car.totalKmDriven ?? 0)}
                       </div>
                       <div className="adm-row-tags">
-                        {car.featured_listing ? <span className="adm-tag adm-tag-coral">Featured</span> : null}
-                        {car.is_splus ? <span className="adm-tag" style={{ background: '#D4AF37', color: '#0B0B0C' }}>S-Plus</span> : null}
-                        {car.inspection_score ? <span className="adm-tag adm-tag-green">Inspected: {car.inspection_score}/100</span> : null}
-                        {car.ownership_type === 'First' ? <span className="adm-tag adm-tag-blue">Single Owner</span> : null}
+                        {car.featuredListing ? <span className="adm-tag adm-tag-coral">Featured</span> : null}
+                        {car.isSplus ? <span className="adm-tag" style={{ background: '#D4AF37', color: '#0B0B0C' }}>S-Plus</span> : null}
+                        {car.inspectionScore ? <span className="adm-tag adm-tag-green">Inspected: {car.inspectionScore}/100</span> : null}
+                        {car.ownershipType === 'First' ? <span className="adm-tag adm-tag-blue">Single Owner</span> : null}
                       </div>
                     </span>
                     <span className="adm-td" style={{ width: 120 }}>
-                      <div className="adm-row-price">{formatINR(car.listing_price_inr)}</div>
+                      <div className="adm-row-price">{formatINR(car.listingPriceInr)}</div>
                     </span>
                     <span className="adm-td" style={{ width: 90 }}>
-                      <span className={`adm-status-badge adm-status-${car.listing_status.toLowerCase()}`}>
-                        {car.listing_status}
+                      <span className={`adm-status-badge adm-status-${car.listingStatus.toLowerCase()}`}>
+                        {car.listingStatus}
                       </span>
                     </span>
                     <span className="adm-td" style={{ width: 100 }}>
-                      {car.location_city ?? '\u2014'}
+                      {car.locationCity ?? '\u2014'}
                     </span>
                     <span className="adm-td" style={{ width: 80 }}>
-                      {car.views_count ?? 0}
+                      {car.viewsCount ?? 0}
                     </span>
                     <span className="adm-td" style={{ width: 80 }}>
-                      {car.lead_count ?? 0}
+                      {car.leadCount ?? 0}
                     </span>
                     <span className="adm-td" style={{ width: 150 }}>
                       <div className="adm-actions">
@@ -352,8 +352,8 @@ export default function AdminPage() {
                   <div key={b.id} className="adm-table-row">
                     <span className="adm-td" style={{ width: 40, color: 'var(--text-muted)' }}>{i + 1}</span>
                     <span className="adm-td" style={{ flex: 1.5 }}>
-                      <Link href={`/car/${b.listing_id}`} className="adm-row-title" style={{ color: 'var(--navy)', textDecoration: 'none' }}>
-                        {b.listing_title ?? (b.listing as Booking['listing'])?.title ?? `Listing #${b.listing_id}`}
+                      <Link href={`/car/${b.listingId}`} className="adm-row-title" style={{ color: 'var(--navy)', textDecoration: 'none' }}>
+                        {b.carTitle ?? (b.listing as Booking['listing'])?.title ?? `Listing #${b.listingId}`}
                       </Link>
                     </span>
                     <span className="adm-td" style={{ flex: 1 }}>
@@ -365,12 +365,12 @@ export default function AdminPage() {
                     </span>
                     <span className="adm-td" style={{ width: 120 }}>
                       <div style={{ fontSize: '0.82rem' }}>
-                        {b.preferred_date ? formatDate(b.preferred_date) : '\u2014'}
-                        {b.preferred_time ? `, ${b.preferred_time}` : ''}
+                        {b.preferredDate ? formatDate(b.preferredDate) : '\u2014'}
+                        {b.preferredTime ? `, ${b.preferredTime}` : ''}
                       </div>
                     </span>
                     <span className="adm-td" style={{ width: 110, fontSize: '0.82rem' }}>
-                      {b.location_preference ?? '\u2014'}
+                      {b.locationPreference ?? '\u2014'}
                     </span>
                     <span className="adm-td" style={{ width: 180 }}>
                       <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
@@ -401,7 +401,7 @@ export default function AdminPage() {
                       {b.notes && <span title={b.notes as string} style={{ cursor: 'help', fontSize: '0.82rem' }}>&#128221;</span>}
                     </span>
                     <span className="adm-td" style={{ width: 100, fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                      {b.created_at ? formatDateTime(b.created_at) : '\u2014'}
+                      {b.createdAt ? formatDateTime(b.createdAt) : '\u2014'}
                     </span>
                   </div>
                 );

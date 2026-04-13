@@ -31,11 +31,11 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const car = await fetchListing(id);
   if (!car) return { title: 'Car Not Found' };
 
-  const price = car.listingPriceInr ?? car.listing_price_inr ?? 0;
-  const fuel = car.fuelType ?? car.fuel_type ?? '';
-  const trans = car.transmissionType ?? car.transmission_type ?? '';
-  const city = car.locationCity ?? car.location_city ?? '';
-  const km = car.totalKmDriven ?? car.total_km_driven ?? 0;
+  const price = car.listingPriceInr ?? 0;
+  const fuel = car.fuelType ?? '';
+  const trans = car.transmissionType ?? '';
+  const city = car.locationCity ?? '';
+  const km = car.totalKmDriven ?? 0;
 
   const title = `${car.title} — ₹${(price / 100000).toFixed(2)} Lakh`;
   const desc = `Buy ${car.title} in ${city || 'India'}. ${km ? (km / 1000).toFixed(0) + 'k km driven' : ''}, ${fuel}, ${trans}. Certified with quality inspection. 1-year warranty included.`;
@@ -62,7 +62,7 @@ export default async function CarDetailPage({ params }: { params: Promise<{ id: 
   const { id } = await params;
   const listing = await fetchListing(id);
   const similarCars = listing
-    ? await fetchSimilar(listing.categoryId ?? listing.category_id ?? null, listing.id)
+    ? await fetchSimilar(listing.categoryId ?? null, listing.id)
     : [];
 
   return (
@@ -75,21 +75,21 @@ export default async function CarDetailPage({ params }: { params: Promise<{ id: 
             name: listing.title,
             brand: { '@type': 'Brand', name: listing.brand },
             model: listing.model,
-            modelDate: String(listing.modelYear ?? listing.model_year),
-            vehicleModelDate: String(listing.modelYear ?? listing.model_year),
-            mileageFromOdometer: { '@type': 'QuantitativeValue', value: listing.totalKmDriven ?? listing.total_km_driven, unitCode: 'KMT' },
-            fuelType: listing.fuelType ?? listing.fuel_type,
-            vehicleTransmission: listing.transmissionType ?? listing.transmission_type,
-            color: listing.exteriorColor ?? listing.exterior_color,
-            vehicleInteriorColor: listing.interiorColor ?? listing.interior_color,
+            modelDate: String(listing.modelYear),
+            vehicleModelDate: String(listing.modelYear),
+            mileageFromOdometer: { '@type': 'QuantitativeValue', value: listing.totalKmDriven, unitCode: 'KMT' },
+            fuelType: listing.fuelType,
+            vehicleTransmission: listing.transmissionType,
+            color: listing.exteriorColor,
+            vehicleInteriorColor: listing.interiorColor,
             numberOfDoors: 4,
             vehicleConfiguration: listing.variant || undefined,
             offers: {
               '@type': 'Offer',
-              price: listing.listingPriceInr ?? listing.listing_price_inr,
+              price: listing.listingPriceInr,
               priceCurrency: 'INR',
-              availability: (listing.listingStatus ?? listing.listing_status) === 'Active' ? 'https://schema.org/InStock' : (listing.listingStatus ?? listing.listing_status) === 'Reserved' ? 'https://schema.org/LimitedAvailability' : 'https://schema.org/SoldOut',
-              itemCondition: (listing.isNewCar ?? listing.is_new_car) ? 'https://schema.org/NewCondition' : 'https://schema.org/UsedCondition',
+              availability: listing.listingStatus === 'Active' ? 'https://schema.org/InStock' : listing.listingStatus === 'Reserved' ? 'https://schema.org/LimitedAvailability' : 'https://schema.org/SoldOut',
+              itemCondition: listing.isNewCar ? 'https://schema.org/NewCondition' : 'https://schema.org/UsedCondition',
               seller: { '@type': 'Organization', name: 'SearchAnyCars', url: 'https://searchanycars.com' },
             },
             image: listing.images || [],

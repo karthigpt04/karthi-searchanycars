@@ -16,32 +16,19 @@ import {
 interface Listing {
   id: number;
   title: string;
-  listing_price_inr?: number;
   listingPriceInr?: number;
-  total_km_driven?: number;
   totalKmDriven?: number;
-  fuel_type?: string;
   fuelType?: string;
-  transmission_type?: string;
   transmissionType?: string;
-  ownership_type?: string;
   ownershipType?: string;
-  location_city?: string;
   locationCity?: string;
-  registration_city?: string;
   registrationCity?: string;
   images?: string[];
-  featured_listing?: boolean;
   featuredListing?: boolean;
-  is_splus?: boolean;
   isSplus?: boolean;
-  is_new_car?: boolean;
   isNewCar?: boolean;
-  listing_status?: string;
   listingStatus?: string;
-  views_count?: number;
   viewsCount?: number;
-  created_at?: string;
   createdAt?: string;
   slug?: string | null;
 }
@@ -53,28 +40,28 @@ interface CarCardProps {
 }
 
 export const CarCard = ({ car, isWishlisted = false, onToggleWishlist }: CarCardProps) => {
-  const price = car.listing_price_inr ?? car.listingPriceInr ?? 0;
+  const price = car.listingPriceInr ?? 0;
   const monthlyEMI =
     price > 0
       ? calculateMonthlyPayment(price * DEFAULT_LOAN_PERCENT, DEFAULT_INTEREST_RATE, DEFAULT_TENURE_MONTHS)
       : 0;
-  const kmDriven = car.total_km_driven ?? car.totalKmDriven ?? 0;
+  const kmDriven = car.totalKmDriven ?? 0;
   const isLowKM = kmDriven < LOW_KM_THRESHOLD && kmDriven > 0;
-  const createdAt = car.created_at ?? car.createdAt;
+  const createdAt = car.createdAt;
   const isNew = createdAt
     ? new Date().getTime() - new Date(createdAt).getTime() < 7 * 24 * 60 * 60 * 1000
     : false;
   const images = car.images ?? [];
   const heroImage = images[0] ?? PLACEHOLDER_CAR_IMAGE;
-  const fuelType = car.fuel_type ?? car.fuelType;
-  const transmissionType = car.transmission_type ?? car.transmissionType;
-  const ownershipType = car.ownership_type ?? car.ownershipType;
-  const locationCity = car.location_city ?? car.locationCity ?? car.registration_city ?? car.registrationCity;
-  const featured = car.featured_listing ?? car.featuredListing;
-  const isSplus = car.is_splus ?? car.isSplus;
-  const isNewCar = car.is_new_car ?? car.isNewCar;
-  const listingStatus = car.listing_status ?? car.listingStatus ?? 'Active';
-  const viewsCount = car.views_count ?? car.viewsCount ?? 0;
+  const fuelType = car.fuelType;
+  const transmissionType = car.transmissionType;
+  const ownershipType = car.ownershipType;
+  const locationCity = car.locationCity ?? car.registrationCity;
+  const featured = car.featuredListing;
+  const isSplus = car.isSplus;
+  const isNewCar = car.isNewCar;
+  const listingStatus = car.listingStatus ?? 'Active';
+  const viewsCount = car.viewsCount ?? 0;
   const url = carUrl(car);
 
   return (
