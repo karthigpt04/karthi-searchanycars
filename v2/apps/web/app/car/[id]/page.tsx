@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { CarDetailClient } from './CarDetailClient';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 
 async function fetchListing(id: string) {
   try {
@@ -45,7 +46,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     description: desc,
     openGraph: {
       title, description: desc,
-      url: `https://searchanycars.com/car/${id}`,
+      url: `${SITE_URL}/car/${id}`,
       siteName: 'SearchAnyCars', type: 'website', locale: 'en_IN',
       images: car.images?.length > 0 ? [{ url: car.images[0], width: 1200, height: 630, alt: car.title }] : [],
     },
@@ -54,7 +55,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
       title, description: desc,
       images: car.images?.[0] ? [car.images[0]] : [],
     },
-    alternates: { canonical: `https://searchanycars.com/car/${id}` },
+    alternates: { canonical: `${SITE_URL}/car/${id}` },
   };
 }
 
@@ -90,18 +91,18 @@ export default async function CarDetailPage({ params }: { params: Promise<{ id: 
               priceCurrency: 'INR',
               availability: listing.listingStatus === 'Active' ? 'https://schema.org/InStock' : listing.listingStatus === 'Reserved' ? 'https://schema.org/LimitedAvailability' : 'https://schema.org/SoldOut',
               itemCondition: listing.isNewCar ? 'https://schema.org/NewCondition' : 'https://schema.org/UsedCondition',
-              seller: { '@type': 'Organization', name: 'SearchAnyCars', url: 'https://searchanycars.com' },
+              seller: { '@type': 'Organization', name: 'SearchAnyCars', url: SITE_URL },
             },
             image: listing.images || [],
-            url: `https://searchanycars.com/car/${listing.id}`,
+            url: `${SITE_URL}/car/${listing.id}`,
           }) }} />
           <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
             '@context': 'https://schema.org',
             '@type': 'BreadcrumbList',
             itemListElement: [
-              { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://searchanycars.com' },
-              { '@type': 'ListItem', position: 2, name: 'Used Cars', item: 'https://searchanycars.com/search' },
-              { '@type': 'ListItem', position: 3, name: listing.title, item: `https://searchanycars.com/car/${listing.id}` },
+              { '@type': 'ListItem', position: 1, name: 'Home', item: SITE_URL },
+              { '@type': 'ListItem', position: 2, name: 'Used Cars', item: `${SITE_URL}/search` },
+              { '@type': 'ListItem', position: 3, name: listing.title, item: `${SITE_URL}/car/${listing.id}` },
             ],
           }) }} />
         </>

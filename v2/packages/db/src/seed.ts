@@ -487,7 +487,11 @@ async function seedAdminUser() {
     .limit(1);
 
   if (existing.length === 0) {
-    const passwordHash = await bcrypt.hash("admin123", 10);
+    const seedPassword = process.env.SEED_ADMIN_PASSWORD;
+    if (!seedPassword) {
+      throw new Error("SEED_ADMIN_PASSWORD env var is required to seed the admin user");
+    }
+    const passwordHash = await bcrypt.hash(seedPassword, 10);
     await db.insert(schema.users).values({
       email: adminEmail,
       name: "Admin",

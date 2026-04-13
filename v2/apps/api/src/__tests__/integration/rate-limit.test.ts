@@ -54,6 +54,7 @@ const mockDb = {
   transaction: vi.fn(async (fn: (tx: unknown) => Promise<void>) => {
     await fn(mockDb);
   }),
+  execute: vi.fn(async () => ({ rows: [{ "?column?": 1 }] })),
 };
 
 // Stub table objects — the routes reference column names off these

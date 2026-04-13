@@ -1,4 +1,11 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+const API_BASE = (() => {
+  const url = process.env.NEXT_PUBLIC_API_URL;
+  if (url) return url;
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('NEXT_PUBLIC_API_URL must be set in production');
+  }
+  return 'http://localhost:4000';
+})();
 
 // Singleton refresh promise — prevents thundering herd on 401
 let refreshPromise: Promise<Response> | null = null;

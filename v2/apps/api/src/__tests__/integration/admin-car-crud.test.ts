@@ -40,6 +40,7 @@ const mockDb = {
   transaction: vi.fn(async (fn: (tx: unknown) => Promise<void>) => {
     await fn(mockDb);
   }),
+  execute: vi.fn(async () => ({ rows: [{ "?column?": 1 }] })),
 };
 
 const stubTable = new Proxy(
