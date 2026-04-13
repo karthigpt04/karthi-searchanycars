@@ -5,10 +5,7 @@ import { createBookingSchema } from "@searchanycars/shared";
 import { requireAuth } from "../plugins/auth.js";
 import { sendBookingConfirmationEmail } from "../services/emailService.js";
 import { AppError } from "../errors.js";
-
-function stripHtml(str: string): string {
-  return str.replace(/<[^>]*>/g, "");
-}
+import { stripHtml } from "../utils/sanitize.js";
 
 export async function bookingRoutes(app: FastifyInstance) {
   // All routes require auth

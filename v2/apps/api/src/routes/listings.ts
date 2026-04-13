@@ -8,10 +8,8 @@ import {
 } from "@searchanycars/shared";
 import { requireAdmin } from "../plugins/auth.js";
 import { AppError } from "../errors.js";
-
-function stripHtml(str: string): string {
-  return str.replace(/<[^>]*>/g, "");
-}
+import { logAudit } from "../services/auditService.js";
+import { stripHtml } from "../utils/sanitize.js";
 
 export async function listingRoutes(app: FastifyInstance) {
   // ─── GET / — paginated list with filters + search ─────────────
@@ -170,6 +168,7 @@ export async function listingRoutes(app: FastifyInstance) {
         .values(sanitized)
         .returning();
 
+      logAudit({ actorId: request.user!.id, actorEmail: request.user!.email, action: "listing.create", resourceType: "listing", resourceId: String(created.id), ipAddress: request.ip, userAgent: request.headers["user-agent"] || "" });
       return reply.status(201).send(created);
     } catch (err: unknown) {
       if (
@@ -218,6 +217,7 @@ export async function listingRoutes(app: FastifyInstance) {
       .where(eq(listings.id, id))
       .returning();
 
+    logAudit({ actorId: request.user!.id, actorEmail: request.user!.email, action: "listing.update", resourceType: "listing", resourceId: String(id), ipAddress: request.ip, userAgent: request.headers["user-agent"] || "" });
     return reply.send(updated);
   });
 
@@ -239,6 +239,7 @@ export async function listingRoutes(app: FastifyInstance) {
       }
 
       await db.delete(listings).where(eq(listings.id, id));
+      logAudit({ actorId: request.user!.id, actorEmail: request.user!.email, action: "listing.delete", resourceType: "listing", resourceId: String(id), ipAddress: request.ip, userAgent: request.headers["user-agent"] || "" });
       return reply.status(204).send();
     }
   );

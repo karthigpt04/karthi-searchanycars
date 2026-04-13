@@ -67,6 +67,7 @@ vi.mock("@searchanycars/db", () => ({
   siteConfig: stubTable,
   filterDefinitions: stubTable,
   categoryFilterMap: stubTable,
+  auditLogs: stubTable,
 }));
 
 // Mock session service (used by auth routes)
@@ -88,6 +89,11 @@ vi.mock("../../services/emailService.js", () => ({
 // Mock upload service
 vi.mock("../../services/uploadService.js", () => ({
   uploadImage: vi.fn(async () => ({ url: "/uploads/test.jpg" })),
+}));
+
+// Mock audit service (fire-and-forget, not needed in tests)
+vi.mock("../../services/auditService.js", () => ({
+  logAudit: vi.fn(),
 }));
 
 // ---------------------------------------------------------------------------
@@ -417,7 +423,7 @@ describe("Auth routes — business logic", () => {
       payload: { email: "existing@test.com", password: "secret123", name: "Dup" },
     });
     expect(res.statusCode).toBe(409);
-    expect(res.json().message).toMatch(/[Aa]lready registered/);
+    expect(res.json().message).toMatch(/[Rr]egistration failed/);
   });
 
   it("POST /register returns 201 for new user", async () => {
@@ -439,8 +445,8 @@ describe("Auth routes — business logic", () => {
     expect(res.statusCode).toBe(201);
     const body = res.json();
     expect(body.user).toBeDefined();
-    expect(body.accessToken).toBeDefined();
-    expect(body.refreshToken).toBeDefined();
+    expect(body.accessToken).toBeUndefined();
+    expect(body.refreshToken).toBeUndefined();
   });
 
   it("POST /login returns 401 for non-existent user", async () => {
@@ -1234,6 +1240,6 @@ describe("Timing attack mitigation", () => {
       payload: { email: "dup@test.com", password: "secret123", name: "Dup" },
     });
     expect(res.statusCode).toBe(409);
-    expect(res.json().message).toBe("Email already registered");
+    expect(res.json().message).toBe("Registration failed");
   });
 });

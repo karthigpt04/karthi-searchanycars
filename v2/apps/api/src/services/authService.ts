@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import jwt, { type SignOptions } from "jsonwebtoken";
 import type { FastifyReply } from "fastify";
@@ -49,6 +50,15 @@ export async function verifyPassword(plain: string, hash: string): Promise<boole
   return bcrypt.compare(plain, hash);
 }
 
+/**
+ * SHA-256 hash for high-entropy tokens (password reset, email verification).
+ * NOT for passwords — bcrypt handles those. SHA-256 is appropriate here because
+ * the input is 256 bits of crypto.randomBytes, immune to dictionary attacks.
+ */
+export function hashToken(token: string): string {
+  return crypto.createHash("sha256").update(token, "utf8").digest("hex");
+}
+
 export function generateAccessToken(user: {
   id: number;
   email: string;
@@ -74,6 +84,13 @@ export function verifyAccessToken(token: string): TokenPayload | null {
   try {
     return jwt.verify(token, config.jwtAccessSecret) as TokenPayload;
   } catch {
+    if (config.jwtAccessSecretPrevious) {
+      try {
+        return jwt.verify(token, config.jwtAccessSecretPrevious) as TokenPayload;
+      } catch {
+        return null;
+      }
+    }
     return null;
   }
 }
@@ -82,6 +99,13 @@ export function verifyRefreshToken(token: string): RefreshPayload | null {
   try {
     return jwt.verify(token, config.jwtRefreshSecret) as RefreshPayload;
   } catch {
+    if (config.jwtRefreshSecretPrevious) {
+      try {
+        return jwt.verify(token, config.jwtRefreshSecretPrevious) as RefreshPayload;
+      } catch {
+        return null;
+      }
+    }
     return null;
   }
 }

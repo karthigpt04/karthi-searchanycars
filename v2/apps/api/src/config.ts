@@ -15,7 +15,16 @@ function requireSecret(envVar: string, devDefault: string): string {
 export const config = {
   port: parseInt(process.env.PORT || "4000", 10),
   host: process.env.HOST || "0.0.0.0",
-  corsOrigin: (process.env.CORS_ORIGIN || "http://localhost:3000").split(",").map(s => s.trim()),
+  corsOrigin: (() => {
+    const raw = process.env.CORS_ORIGIN;
+    if ((!raw || raw.trim() === "") && isProduction) {
+      throw new Error(
+        "FATAL: CORS_ORIGIN environment variable is required in production. " +
+        "Set it to your frontend domain(s), e.g. CORS_ORIGIN=https://searchanycars.com"
+      );
+    }
+    return (raw || "http://localhost:3000").split(",").map(s => s.trim());
+  })(),
   isDev: process.env.NODE_ENV !== "production",
   rateLimitMax: parseInt(
     process.env.RATE_LIMIT_MAX ||
@@ -55,9 +64,17 @@ export const config = {
     },
   },
 
+  // Account lockout
+  accountLockout: {
+    maxAttempts: parseInt(process.env.ACCOUNT_LOCKOUT_MAX_ATTEMPTS || "5", 10),
+    lockDurationMs: parseInt(process.env.ACCOUNT_LOCKOUT_DURATION_MINUTES || "15", 10) * 60 * 1000,
+  },
+
   // JWT
   jwtAccessSecret: requireSecret("JWT_ACCESS_SECRET", "dev-access-secret-change-me"),
   jwtRefreshSecret: requireSecret("JWT_REFRESH_SECRET", "dev-refresh-secret-change-me"),
+  jwtAccessSecretPrevious: process.env.JWT_ACCESS_SECRET_PREVIOUS || "",
+  jwtRefreshSecretPrevious: process.env.JWT_REFRESH_SECRET_PREVIOUS || "",
   jwtAccessExpiry: process.env.JWT_ACCESS_EXPIRY || "15m",
   jwtRefreshExpiry: process.env.JWT_REFRESH_EXPIRY || "7d",
 

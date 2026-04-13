@@ -12,6 +12,7 @@ import {
 import {
   hashPassword,
   verifyPassword,
+  hashToken,
   DUMMY_HASH,
   generateAccessToken,
   generateRefreshToken,
@@ -30,6 +31,7 @@ import { sendPasswordResetEmail } from "../services/emailService.js";
 import { requireAuth, requireAdmin } from "../plugins/auth.js";
 import { config } from "../config.js";
 import { AppError } from "../errors.js";
+import { logAudit } from "../services/auditService.js";
 
 export async function authRoutes(app: FastifyInstance) {
   // ─── Register ───────────────────────────────────────────────────
@@ -50,7 +52,7 @@ export async function authRoutes(app: FastifyInstance) {
     ]);
 
     if (existing.length > 0) {
-      throw new AppError("Email already registered", 409);
+      throw new AppError("Registration failed", 409);
     }
 
     const [inserted] = await db
@@ -81,8 +83,6 @@ export async function authRoutes(app: FastifyInstance) {
 
     return reply.status(201).send({
       user: { id: inserted.id, email: inserted.email, name: inserted.name, role: inserted.role },
-      accessToken,
-      refreshToken,
     });
   });
 
@@ -99,13 +99,35 @@ export async function authRoutes(app: FastifyInstance) {
       .limit(1);
     const user = rows[0];
 
+    // Check account lockout before password verification
+    if (user?.lockedUntil && user.lockedUntil > new Date()) {
+      // Still run bcrypt to prevent timing-based enumeration
+      await verifyPassword(body.password, DUMMY_HASH);
+      throw new AppError("Account temporarily locked. Try again later.", 423);
+    }
+
     // Always run bcrypt.compare to prevent timing-based email enumeration.
     // If user doesn't exist or has no password, compare against DUMMY_HASH.
     const hashToVerify = user?.passwordHash || DUMMY_HASH;
     const passwordValid = await verifyPassword(body.password, hashToVerify);
 
     if (!user || !user.passwordHash || !passwordValid) {
+      // Track failed login attempts
+      if (user) {
+        const attempts = (user.failedLoginAttempts ?? 0) + 1;
+        const updates: Record<string, unknown> = { failedLoginAttempts: attempts };
+        if (attempts >= config.accountLockout.maxAttempts) {
+          updates.lockedUntil = new Date(Date.now() + config.accountLockout.lockDurationMs);
+          updates.failedLoginAttempts = 0;
+        }
+        await db.update(users).set(updates).where(eq(users.id, user.id));
+      }
       throw new AppError("Invalid email or password", 401);
+    }
+
+    // Reset failed attempts on successful login
+    if (user.failedLoginAttempts > 0 || user.lockedUntil) {
+      await db.update(users).set({ failedLoginAttempts: 0, lockedUntil: null }).where(eq(users.id, user.id));
     }
 
     const accessToken = generateAccessToken({
@@ -131,8 +153,6 @@ export async function authRoutes(app: FastifyInstance) {
         role: user.role,
         avatarUrl: user.avatarUrl,
       },
-      accessToken,
-      refreshToken,
     });
   });
 
@@ -140,10 +160,7 @@ export async function authRoutes(app: FastifyInstance) {
   app.post("/refresh", {
     config: { rateLimit: config.authRateLimit.moderate },
   }, async (request, reply) => {
-    // Try cookie first, then body
-    const token =
-      request.cookies?.refresh_token ||
-      (request.body as { refreshToken?: string })?.refreshToken;
+    const token = request.cookies?.refresh_token;
 
     if (!token) {
       throw new AppError("No refresh token", 401);
@@ -194,8 +211,6 @@ export async function authRoutes(app: FastifyInstance) {
         role: user.role,
         avatarUrl: user.avatarUrl,
       },
-      accessToken: newAccessToken,
-      refreshToken: newRefreshToken,
     });
   });
 
@@ -245,7 +260,9 @@ export async function authRoutes(app: FastifyInstance) {
     const successMessage = "If that email exists, a reset link has been sent.";
 
     // Fire background processing — do NOT await
-    processForgotPassword(body.email, request.log).catch(() => {});
+    processForgotPassword(body.email, request.log).catch((err) => {
+      request.log.error(err, "[Auth] Unhandled forgot-password background error");
+    });
 
     return reply.send({ message: successMessage });
   });
@@ -256,10 +273,11 @@ export async function authRoutes(app: FastifyInstance) {
   }, async (request, reply) => {
     const body = resetPasswordSchema.parse(request.body);
 
+    const tokenHash = hashToken(body.token);
     const rows = await db
       .select()
       .from(passwordResetTokens)
-      .where(eq(passwordResetTokens.token, body.token))
+      .where(eq(passwordResetTokens.token, tokenHash))
       .limit(1);
     const resetRecord = rows[0];
 
@@ -327,6 +345,23 @@ export async function authRoutes(app: FastifyInstance) {
         .set({ passwordHash: hash, updatedAt: new Date() })
         .where(eq(users.id, user.id));
 
+      // Invalidate ALL sessions (including stolen ones), then re-issue for current session
+      await deleteAllUserSessions(user.id);
+      const accessToken = generateAccessToken({
+        id: user.id,
+        email: user.email!,
+        role: user.role,
+        name: user.name,
+      });
+      const refreshToken = generateRefreshToken(user);
+      await createSession(
+        user.id,
+        refreshToken,
+        request.ip,
+        request.headers["user-agent"] || ""
+      );
+      setAuthCookies(reply, accessToken, refreshToken);
+
       return reply.send({ message: "Password changed successfully" });
     }
   );
@@ -370,6 +405,7 @@ export async function authRoutes(app: FastifyInstance) {
           role: users.role,
         });
 
+      logAudit({ actorId: request.user!.id, actorEmail: request.user!.email, action: "user.create", resourceType: "user", resourceId: String(inserted.id), details: { email: inserted.email, role: inserted.role }, ipAddress: request.ip, userAgent: request.headers["user-agent"] || "" });
       return reply.status(201).send({ user: inserted });
     }
   );
@@ -411,6 +447,7 @@ export async function authRoutes(app: FastifyInstance) {
       await deleteAllUserSessions(userId);
       await db.delete(users).where(eq(users.id, userId));
 
+      logAudit({ actorId: request.user!.id, actorEmail: request.user!.email, action: "user.delete", resourceType: "user", resourceId: String(userId), ipAddress: request.ip, userAgent: request.headers["user-agent"] || "" });
       return reply.status(204).send();
     }
   );
@@ -441,6 +478,8 @@ export async function authRoutes(app: FastifyInstance) {
       if (role && ["admin", "user"].includes(role)) updates.role = role;
       if (password && password.length >= 6) {
         updates.passwordHash = await hashPassword(password);
+        updates.failedLoginAttempts = 0;
+        updates.lockedUntil = null;
       }
 
       await db.update(users).set(updates).where(eq(users.id, userId));
@@ -456,6 +495,7 @@ export async function authRoutes(app: FastifyInstance) {
         .from(users)
         .where(eq(users.id, userId));
 
+      logAudit({ actorId: request.user!.id, actorEmail: request.user!.email, action: "user.update", resourceType: "user", resourceId: String(userId), details: { name, role }, ipAddress: request.ip, userAgent: request.headers["user-agent"] || "" });
       return reply.send({ user: updated });
     }
   );
@@ -485,12 +525,13 @@ async function processForgotPassword(
       .set({ used: true })
       .where(eq(passwordResetTokens.userId, user.id));
 
-    // Generate secure token
+    // Generate secure token — store only the SHA-256 hash in DB
     const token = crypto.randomBytes(32).toString("hex");
+    const tokenHash = hashToken(token);
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
     await db
       .insert(passwordResetTokens)
-      .values({ userId: user.id, token, expiresAt });
+      .values({ userId: user.id, token: tokenHash, expiresAt });
 
     await sendPasswordResetEmail(user.email!, token);
   } catch (err) {

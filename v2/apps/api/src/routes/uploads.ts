@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { requireAdmin } from "../plugins/auth.js";
 import { uploadImage } from "../services/uploadService.js";
 import { AppError } from "../errors.js";
+import { logAudit } from "../services/auditService.js";
 
 export async function uploadRoutes(app: FastifyInstance) {
   // ─── POST /image — upload car image (admin) ───────────────────
@@ -24,6 +25,7 @@ export async function uploadRoutes(app: FastifyInstance) {
 
     const result = await uploadImage(buffer, data.filename, data.mimetype);
 
+    logAudit({ actorId: request.user!.id, actorEmail: request.user!.email, action: "upload.image", resourceType: "upload", details: { filename: data.filename }, ipAddress: request.ip, userAgent: request.headers["user-agent"] || "" });
     return reply.send(result);
   });
 }

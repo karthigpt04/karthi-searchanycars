@@ -31,7 +31,7 @@ export async function sendPasswordResetEmail(
       "[email] SMTP not configured — skipping password reset email to",
       toEmail
     );
-    console.warn("[email] Reset token:", resetToken);
+    console.warn("[email] Reset token generated (check email or enable SMTP)");
     return;
   }
 

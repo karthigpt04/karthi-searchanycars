@@ -34,7 +34,7 @@ describe("config", () => {
     it("corsOrigin defaults to http://localhost:3000", async () => {
       delete process.env.CORS_ORIGIN;
       const config = await loadConfig();
-      expect(config.corsOrigin).toBe("http://localhost:3000");
+      expect(config.corsOrigin).toEqual(["http://localhost:3000"]);
     });
 
     it("isDev is true when NODE_ENV is not production", async () => {
@@ -152,7 +152,7 @@ describe("config", () => {
     it("CORS_ORIGIN overrides corsOrigin", async () => {
       process.env.CORS_ORIGIN = "https://example.com";
       const config = await loadConfig();
-      expect(config.corsOrigin).toBe("https://example.com");
+      expect(config.corsOrigin).toEqual(["https://example.com"]);
     });
 
     it("NODE_ENV=production sets isDev to false", async () => {
@@ -160,6 +160,7 @@ describe("config", () => {
       process.env.JWT_ACCESS_SECRET = "prod-access";
       process.env.JWT_REFRESH_SECRET = "prod-refresh";
       process.env.COOKIE_SECRET = "prod-cookie";
+      process.env.CORS_ORIGIN = "https://example.com";
       const config = await loadConfig();
       expect(config.isDev).toBe(false);
     });
@@ -216,8 +217,18 @@ describe("config", () => {
   // --- Production secret validation ---
 
   describe("production secret validation", () => {
+    it("throws when CORS_ORIGIN is missing in production", async () => {
+      process.env.NODE_ENV = "production";
+      delete process.env.CORS_ORIGIN;
+      process.env.JWT_ACCESS_SECRET = "prod-access";
+      process.env.JWT_REFRESH_SECRET = "prod-refresh";
+      process.env.COOKIE_SECRET = "prod-cookie";
+      await expect(loadConfig()).rejects.toThrow("CORS_ORIGIN");
+    });
+
     it("throws when JWT_ACCESS_SECRET is missing in production", async () => {
       process.env.NODE_ENV = "production";
+      process.env.CORS_ORIGIN = "https://example.com";
       delete process.env.JWT_ACCESS_SECRET;
       process.env.JWT_REFRESH_SECRET = "prod-refresh";
       process.env.COOKIE_SECRET = "prod-cookie";
@@ -226,6 +237,7 @@ describe("config", () => {
 
     it("throws when JWT_REFRESH_SECRET is missing in production", async () => {
       process.env.NODE_ENV = "production";
+      process.env.CORS_ORIGIN = "https://example.com";
       process.env.JWT_ACCESS_SECRET = "prod-access";
       delete process.env.JWT_REFRESH_SECRET;
       process.env.COOKIE_SECRET = "prod-cookie";
@@ -234,6 +246,7 @@ describe("config", () => {
 
     it("throws when COOKIE_SECRET is missing in production", async () => {
       process.env.NODE_ENV = "production";
+      process.env.CORS_ORIGIN = "https://example.com";
       process.env.JWT_ACCESS_SECRET = "prod-access";
       process.env.JWT_REFRESH_SECRET = "prod-refresh";
       delete process.env.COOKIE_SECRET;
@@ -242,6 +255,7 @@ describe("config", () => {
 
     it("does NOT throw when all secrets are provided in production", async () => {
       process.env.NODE_ENV = "production";
+      process.env.CORS_ORIGIN = "https://example.com";
       process.env.JWT_ACCESS_SECRET = "prod-access";
       process.env.JWT_REFRESH_SECRET = "prod-refresh";
       process.env.COOKIE_SECRET = "prod-cookie";

@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { db, siteConfig } from "@searchanycars/db";
 import { requireAdmin } from "../plugins/auth.js";
 import { AppError } from "../errors.js";
+import { logAudit } from "../services/auditService.js";
 
 export async function siteConfigRoutes(app: FastifyInstance) {
   // ─── GET / — all config as { key: value } object ──────────────
@@ -59,6 +60,7 @@ export async function siteConfigRoutes(app: FastifyInstance) {
           .where(eq(siteConfig.key, key));
       }
 
+      logAudit({ actorId: request.user!.id, actorEmail: request.user!.email, action: "config.upsert", resourceType: "config", resourceId: key, ipAddress: request.ip, userAgent: request.headers["user-agent"] || "" });
       return reply.send({ key, value });
     }
   );

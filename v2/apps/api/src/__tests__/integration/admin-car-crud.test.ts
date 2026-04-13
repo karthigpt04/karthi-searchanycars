@@ -64,6 +64,7 @@ vi.mock("@searchanycars/db", () => ({
   siteConfig: stubTable,
   filterDefinitions: stubTable,
   categoryFilterMap: stubTable,
+  auditLogs: stubTable,
 }));
 
 vi.mock("../../services/sessionService.js", () => ({
@@ -82,6 +83,10 @@ vi.mock("../../services/emailService.js", () => ({
 
 vi.mock("../../services/uploadService.js", () => ({
   uploadImage: vi.fn(async () => ({ url: "/uploads/test.jpg" })),
+}));
+
+vi.mock("../../services/auditService.js", () => ({
+  logAudit: vi.fn(),
 }));
 
 // ---------------------------------------------------------------------------

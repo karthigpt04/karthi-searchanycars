@@ -53,7 +53,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         try {
           const data = (await api.refreshToken()) as { user: User };
           setUser(data.user);
-        } catch {
+        } catch (err) {
+          console.error('[Auth] Session refresh failed:', err);
           setUser(null);
         }
       } finally {

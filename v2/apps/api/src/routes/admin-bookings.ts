@@ -4,6 +4,7 @@ import { db, testDriveBookings, listings, users } from "@searchanycars/db";
 import { updateBookingStatusSchema } from "@searchanycars/shared";
 import { requireAdmin } from "../plugins/auth.js";
 import { AppError } from "../errors.js";
+import { logAudit } from "../services/auditService.js";
 
 export async function adminBookingRoutes(app: FastifyInstance) {
   // All routes require admin
@@ -62,6 +63,7 @@ export async function adminBookingRoutes(app: FastifyInstance) {
       .set({ status, updatedAt: new Date() })
       .where(eq(testDriveBookings.id, id));
 
+    logAudit({ actorId: request.user!.id, actorEmail: request.user!.email, action: "booking.status.update", resourceType: "booking", resourceId: String(id), details: { status }, ipAddress: request.ip, userAgent: request.headers["user-agent"] || "" });
     return reply.send({ message: "Booking status updated", id, status });
   });
 }

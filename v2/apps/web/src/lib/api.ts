@@ -82,12 +82,12 @@ export const api = {
 
   // Auth
   login: (email: string, password: string) =>
-    request<{ user: unknown; accessToken: string }>('/api/v1/auth/login', {
+    request<{ user: unknown }>('/api/v1/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     }),
   register: (email: string, password: string, name: string) =>
-    request<{ user: unknown; accessToken: string }>('/api/v1/auth/register', {
+    request<{ user: unknown }>('/api/v1/auth/register', {
       method: 'POST',
       body: JSON.stringify({ email, password, name }),
     }),

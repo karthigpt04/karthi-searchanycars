@@ -79,6 +79,7 @@ vi.mock("@searchanycars/db", () => ({
   siteConfig: stubTable,
   filterDefinitions: stubTable,
   categoryFilterMap: stubTable,
+  auditLogs: stubTable,
 }));
 
 // Mock session service (used by auth routes)
@@ -100,6 +101,11 @@ vi.mock("../../services/emailService.js", () => ({
 // Mock upload service
 vi.mock("../../services/uploadService.js", () => ({
   uploadImage: vi.fn(async () => ({ url: "/uploads/test.jpg" })),
+}));
+
+// Mock audit service
+vi.mock("../../services/auditService.js", () => ({
+  logAudit: vi.fn(),
 }));
 
 // ---------------------------------------------------------------------------
@@ -265,7 +271,7 @@ describe("Per-route auth rate limiting", () => {
         const res = await app.inject({
           method: "POST",
           url: "/api/v1/auth/refresh",
-          payload: { refreshToken: "some-token" },
+          cookies: { refresh_token: "some-token" },
         });
         expect(res.statusCode).not.toBe(429);
       }
@@ -274,7 +280,7 @@ describe("Per-route auth rate limiting", () => {
       const res = await app.inject({
         method: "POST",
         url: "/api/v1/auth/refresh",
-        payload: { refreshToken: "some-token" },
+        cookies: { refresh_token: "some-token" },
       });
       expect(res.statusCode).toBe(429);
     });

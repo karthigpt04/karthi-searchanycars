@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   hashPassword,
   verifyPassword,
+  hashToken,
   generateAccessToken,
   generateRefreshToken,
   verifyAccessToken,
@@ -65,6 +66,42 @@ describe("authService", () => {
       const pass = "passwort-\u00fc\u00f6\u00e4";
       const hash = await hashPassword(pass);
       expect(await verifyPassword(pass, hash)).toBe(true);
+    });
+  });
+
+  // --- Token hashing (SHA-256 for high-entropy tokens) ---
+
+  describe("hashToken", () => {
+    it("returns a 64-character hex string", () => {
+      const hash = hashToken("abc123");
+      expect(hash).toMatch(/^[0-9a-f]{64}$/);
+    });
+
+    it("is deterministic — same input produces same hash", () => {
+      const h1 = hashToken("test-token");
+      const h2 = hashToken("test-token");
+      expect(h1).toBe(h2);
+    });
+
+    it("different inputs produce different hashes", () => {
+      const h1 = hashToken("token-a");
+      const h2 = hashToken("token-b");
+      expect(h1).not.toBe(h2);
+    });
+
+    it("matches known SHA-256 test vector", () => {
+      // SHA-256 of empty string is well-known
+      const hash = hashToken("");
+      expect(hash).toBe(
+        "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      );
+    });
+
+    it("handles a 64-char hex token (typical reset token)", () => {
+      const token = "a".repeat(64);
+      const hash = hashToken(token);
+      expect(hash).toMatch(/^[0-9a-f]{64}$/);
+      expect(hash).not.toBe(token);
     });
   });
 

@@ -60,7 +60,7 @@ describe('api.getSiteConfig', () => {
 // ---------------------------------------------------------------------------
 describe('api.login', () => {
   it('sends POST with email and password', async () => {
-    const payload = { user: { id: 1 }, accessToken: 'tok' };
+    const payload = { user: { id: 1 } };
     mockFetch.mockResolvedValueOnce(jsonResponse(payload));
     const result = await api.login('a@b.com', 'pass123');
     const [url, init] = mockFetch.mock.calls[0];
@@ -81,7 +81,7 @@ describe('api.login', () => {
 // ---------------------------------------------------------------------------
 describe('api.register', () => {
   it('sends POST with email, password, name', async () => {
-    mockFetch.mockResolvedValueOnce(jsonResponse({ user: {}, accessToken: 'tok' }));
+    mockFetch.mockResolvedValueOnce(jsonResponse({ user: {} }));
     await api.register('a@b.com', 'pass', 'Alice');
     const [url, init] = mockFetch.mock.calls[0];
     expect(url).toBe(`${API_BASE}/api/v1/auth/register`);

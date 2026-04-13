@@ -9,6 +9,7 @@ import {
 import { createCategorySchema, updateCategorySchema } from "@searchanycars/shared";
 import { requireAdmin } from "../plugins/auth.js";
 import { AppError } from "../errors.js";
+import { logAudit } from "../services/auditService.js";
 
 export async function categoryRoutes(app: FastifyInstance) {
   // ─── GET / — list all categories ──────────────────────────────
@@ -24,6 +25,7 @@ export async function categoryRoutes(app: FastifyInstance) {
   app.post("/", { preHandler: [requireAdmin] }, async (request, reply) => {
     const body = createCategorySchema.parse(request.body);
     const [created] = await db.insert(categories).values(body).returning();
+    logAudit({ actorId: request.user!.id, actorEmail: request.user!.email, action: "category.create", resourceType: "category", resourceId: String(created.id), ipAddress: request.ip, userAgent: request.headers["user-agent"] || "" });
     return reply.status(201).send(created);
   });
 
@@ -48,6 +50,7 @@ export async function categoryRoutes(app: FastifyInstance) {
       .where(eq(categories.id, id))
       .returning();
 
+    logAudit({ actorId: request.user!.id, actorEmail: request.user!.email, action: "category.update", resourceType: "category", resourceId: String(id), ipAddress: request.ip, userAgent: request.headers["user-agent"] || "" });
     return reply.send(updated);
   });
 
@@ -69,6 +72,7 @@ export async function categoryRoutes(app: FastifyInstance) {
       }
 
       await db.delete(categories).where(eq(categories.id, id));
+      logAudit({ actorId: request.user!.id, actorEmail: request.user!.email, action: "category.delete", resourceType: "category", resourceId: String(id), ipAddress: request.ip, userAgent: request.headers["user-agent"] || "" });
       return reply.status(204).send();
     }
   );
@@ -124,6 +128,7 @@ export async function categoryRoutes(app: FastifyInstance) {
         }
       });
 
+      logAudit({ actorId: request.user!.id, actorEmail: request.user!.email, action: "category.filters.update", resourceType: "category", resourceId: String(categoryId), details: { filterIds }, ipAddress: request.ip, userAgent: request.headers["user-agent"] || "" });
       return reply.send({ categoryId, filterIds });
     }
   );

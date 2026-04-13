@@ -188,6 +188,8 @@ export const users = pgTable("users", {
   phoneVerified: boolean("phone_verified").notNull().default(false),
   emailVerified: boolean("email_verified").notNull().default(false),
   avatarUrl: text("avatar_url"),
+  failedLoginAttempts: integer("failed_login_attempts").notNull().default(0),
+  lockedUntil: timestamp("locked_until"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -323,3 +325,22 @@ export const siteConfig = pgTable("site_config", {
   value: jsonb("value").notNull().default({}),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
+
+// ─── Table 11: audit_logs ──────────────────────────────────────────
+export const auditLogs = pgTable("audit_logs", {
+  id: serial("id").primaryKey(),
+  actorId: integer("actor_id").notNull(),
+  actorEmail: varchar("actor_email", { length: 255 }).notNull(),
+  action: varchar("action", { length: 50 }).notNull(),
+  resourceType: varchar("resource_type", { length: 50 }).notNull(),
+  resourceId: varchar("resource_id", { length: 100 }),
+  details: jsonb("details").default({}),
+  ipAddress: varchar("ip_address", { length: 45 }),
+  userAgent: text("user_agent"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => [
+  index("idx_audit_logs_actor").on(t.actorId),
+  index("idx_audit_logs_action").on(t.action),
+  index("idx_audit_logs_created_at").on(t.createdAt),
+  index("idx_audit_logs_resource").on(t.resourceType, t.resourceId),
+]);
